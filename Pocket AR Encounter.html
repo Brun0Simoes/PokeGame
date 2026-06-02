@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#2D5BD1" />
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>Pocket Quest — AR Encounter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;500;600;700&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<div id="app">
+  <!-- SPA boot screen — replaced by main.js as soon as it loads -->
+  <div class="auth-screen">
+    <div class="sky-decor">
+      <div class="cloud c1"></div>
+      <div class="cloud c2"></div>
+      <div class="cloud c3"></div>
+      <div class="ground-strip"></div>
+      <div class="sparkles"></div>
+    </div>
+    <div class="auth-stage">
+      <div class="auth-card panel">
+        <div class="auth-body center">
+          <div class="pokeball-spinner"></div>
+          <div class="creating-text">Carregando Pocket Quest…</div>
+          <div class="creating-sub" id="boot-sub">Preparando o cartucho.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three":         "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="js/main.js"></script>
+<script>
+/* Boot watchdog: if the app hasn't rendered within 14s (e.g. a module
+   failed to load on a cold/offline first visit), show a friendly retry. */
+window.__pkqBooted = false;
+setTimeout(function(){
+  if(window.__pkqBooted) return;
+  var sub = document.getElementById('boot-sub');
+  if(sub){
+    sub.innerHTML = 'Demorando mais que o normal… verifique sua conexão.<br><button onclick="location.reload()" style="margin-top:10px;font-family:inherit;cursor:pointer;padding:8px 14px;border:3px solid #1B2154;border-radius:8px;background:#FFE07A;">RECARREGAR</button>';
+  }
+}, 14000);
+window.addEventListener('error', function(ev){
+  if(window.__pkqBooted) return;
+  if(ev && ev.message && /import|module|fetch/i.test(ev.message)){
+    var sub = document.getElementById('boot-sub');
+    if(sub) sub.textContent = 'Falha ao carregar recursos. Verifique a conexão e recarregue.';
+  }
+});
+</script>
+
+</body>
+</html>

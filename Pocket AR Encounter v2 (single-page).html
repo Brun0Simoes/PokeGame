@@ -1,0 +1,2598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Pocket AR Encounter — Regions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;500;600;700&family=VT323&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   POCKET AR ENCOUNTER
+   Mainline JRPG / pixel-art Pokémon style — GBA → modern.
+   Single-file prototype · Three.js + WebXR + PokéAPI + WebAudio
+   ============================================================ */
+
+:root{
+  /* paper / dialog */
+  --paper:        #FFFCEC;
+  --paper-2:      #F0E8C8;
+  --paper-shade:  #D9CFA2;
+  --ink:          #2A2540;
+  --ink-soft:     #5C5577;
+
+  /* navy border (classic dialog frame) */
+  --border:       #1B2154;
+  --border-soft:  #3A427F;
+
+  /* battle scene */
+  --sky-top:      #8AC8F0;
+  --sky-mid:      #BFE3F8;
+  --sky-low:      #E6F4FB;
+  --grass-1:      #79C868;
+  --grass-2:      #4C9E3D;
+  --grass-3:      #2E7A2D;
+  --soil:         #B79264;
+
+  /* poké palette */
+  --red:          #DC3545;
+  --red-deep:     #9F1F2D;
+  --blue:         #2D5BD1;
+  --blue-deep:    #1A3A99;
+  --gold:         #F2B939;
+  --gold-deep:    #B7872A;
+
+  --shadow-px:    3px 3px 0 var(--border);
+  --shadow-px-2:  4px 4px 0 var(--border);
+}
+
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; }
+body{
+  background:
+    /* soft pixel cloud texture */
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 2px, transparent 2px 4px),
+    radial-gradient(1200px 700px at 50% -100px, #C3E8FB, transparent 60%),
+    linear-gradient(180deg, #E9F3F9 0%, #F7F1DA 60%, #EEDEB1 100%);
+  color: var(--ink);
+  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.45;
+  min-height: 100vh;
+  image-rendering: pixelated;
+  overflow-x:hidden;
+}
+
+/* faint pixel dots overlay */
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:1;
+  background-image:
+    radial-gradient(rgba(28,33,84,0.06) 1px, transparent 1.5px);
+  background-size: 4px 4px;
+  opacity: 0.5;
+}
+
+::selection{ background: var(--gold); color: var(--ink); }
+
+.pp { font-family:'Press Start 2P', monospace; letter-spacing:0; }
+.vt { font-family:'VT323', monospace; }
+.dim{ color: var(--ink-soft); }
+
+/* ============================================================
+   PANEL — the dialog-box look (paper + thick navy border)
+   ============================================================ */
+.panel{
+  background: var(--paper);
+  border: 3px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-px-2),
+              inset 0 0 0 2px #FFF,
+              inset 0 0 0 3px rgba(28,33,84,0.18);
+  position: relative;
+}
+.panel.tight{ padding: 14px; }
+.panel.flush{ padding: 0; overflow: hidden; }
+
+.panel h2, .panel h3{ margin:0; }
+
+/* corner pixel-decoration */
+.panel-bar{
+  display:flex; align-items:center; gap:10px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #2D5BD1, #1A3A99 60%, #142C7A);
+  color:#fff; border-bottom: 3px solid var(--border);
+  font-family:'Press Start 2P', monospace; font-size: 11px;
+  letter-spacing: 0.04em; text-shadow: 2px 2px 0 rgba(0,0,0,0.35);
+}
+.panel-bar .dot{
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--gold); border: 2px solid #FFF;
+  box-shadow: 0 0 0 2px var(--border);
+}
+.panel-bar .right{ margin-left:auto; opacity:.9; }
+
+/* ============================================================
+   BUTTON — JRPG menu option
+   ============================================================ */
+.btn{
+  position:relative;
+  display:inline-flex; align-items:center; gap:10px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 3px solid var(--border);
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-family:'Pixelify Sans'; font-weight: 600; font-size: 17px;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--border);
+  transition: transform .08s ease, box-shadow .08s ease;
+  user-select:none;
+}
+.btn::before{
+  content:"▶";
+  font-size: 10px; color: var(--red);
+  transition: transform .12s;
+}
+.btn:hover{ transform: translate(1px,1px); box-shadow: 2px 2px 0 var(--border); background:#FFF8D6; }
+.btn:hover::before{ transform: translateX(2px); }
+.btn:active{ transform: translate(3px,3px); box-shadow: 0 0 0 var(--border); }
+.btn.no-arrow::before{ content:none; }
+
+.btn.primary{
+  background: linear-gradient(180deg, #FF5468 0%, #DC3545 50%, #B41F2E 100%);
+  color: #fff;
+  text-shadow: 1px 1px 0 var(--border);
+}
+.btn.primary::before{ color:#fff; }
+.btn.primary:hover{ background: linear-gradient(180deg, #FF6B7B, #E63B4A 50%, #C0273A); }
+
+.btn.blue{
+  background: linear-gradient(180deg, #5481E8, #2D5BD1 50%, #1A3A99 100%);
+  color: #fff;
+  text-shadow: 1px 1px 0 var(--border);
+}
+.btn.blue::before{ color:#fff; }
+
+.btn.tiny{ padding: 5px 10px; font-size:13px; font-family:'Press Start 2P'; letter-spacing:0; }
+.btn.tiny::before{ font-size:8px; }
+.btn.ghost{
+  background: transparent; box-shadow: none; border-color: var(--border-soft);
+}
+.btn.ghost:hover{ background: rgba(255,255,255,0.4); }
+
+/* hover-shake for tiny menu items */
+.menu-item{
+  display:flex; align-items:center; gap:12px;
+  padding: 12px 16px;
+  background: var(--paper); border:0;
+  border-bottom: 2px dashed rgba(28,33,84,0.12);
+  font-family:'Pixelify Sans'; font-size:18px; font-weight:600;
+  color: var(--ink); cursor:pointer; width:100%; text-align:left;
+}
+.menu-item:last-child{ border-bottom:0; }
+.menu-item::before{
+  content:"▶"; color: transparent; font-size:11px;
+  transition: color .12s, transform .12s;
+}
+.menu-item:hover{ background: #FFF6D0; }
+.menu-item:hover::before{ color: var(--red); transform: translateX(2px); }
+
+/* ============================================================
+   APP HEADER · pixel title bar
+   ============================================================ */
+.app-header{
+  position: sticky; top: 0; z-index: 50;
+  display:flex; align-items: stretch;
+  border-bottom: 3px solid var(--border);
+  background: linear-gradient(180deg, #2D5BD1, #1A3A99 70%, #142C7A);
+  color:#fff;
+  font-family: 'Press Start 2P', monospace;
+}
+.app-header .brand{
+  display:flex; align-items:center; gap:14px;
+  padding: 12px 22px;
+  border-right: 3px solid var(--border);
+}
+.app-header .pokeball{
+  width: 34px; height: 34px; border-radius:50%;
+  background:
+    linear-gradient(180deg, #EF3F4F 0 49%, #fff 49% 100%);
+  position: relative;
+  border: 3px solid var(--border);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.4), 2px 2px 0 rgba(0,0,0,0.25);
+}
+.app-header .pokeball::before{
+  content:""; position:absolute; left:50%; top:50%;
+  transform: translate(-50%,-50%);
+  width: 12px; height: 12px; border-radius:50%;
+  background:#fff; border: 3px solid var(--border);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+}
+.app-header .pokeball::after{
+  content:""; position:absolute; left:50%; top:50%;
+  transform: translate(-50%,-50%);
+  width: 100%; height: 3px; background: var(--border);
+}
+.app-header .ttl{ font-size: 13px; text-shadow: 2px 2px 0 rgba(0,0,0,0.4); }
+.app-header .ttl small{ display:block; font-size:8px; opacity:.75; margin-top:4px; letter-spacing:0.1em; }
+
+.app-header nav{
+  display:flex; align-items:center; gap: 6px;
+  padding: 10px 18px;
+}
+.app-header nav a{
+  color:#fff; text-decoration:none; font-size: 9px; padding: 8px 10px;
+  border-radius: 6px; opacity: .85;
+}
+.app-header nav a:hover{ background: rgba(255,255,255,0.12); opacity:1; }
+
+.app-header .controls{
+  margin-left:auto;
+  display:flex; align-items:center; gap:8px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--border);
+  background: rgba(0,0,0,0.18);
+}
+.hdr-btn{
+  background: var(--paper); color: var(--ink);
+  border: 2px solid var(--border);
+  padding: 7px 10px; font-family:'Press Start 2P'; font-size:8px;
+  border-radius: 6px; cursor:pointer; letter-spacing:0.05em;
+  display:inline-flex; align-items:center; gap:7px;
+}
+.hdr-btn:hover{ background:#FFF6D0; }
+.hdr-btn .led{
+  width:8px; height:8px; border-radius:50%; background: #BFB58A;
+  border: 1px solid var(--border); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
+}
+.hdr-btn.on .led{ background: #5FE17C; box-shadow: 0 0 6px #5FE17C, inset 0 0 0 1px rgba(0,0,0,0.2); }
+
+/* ============================================================
+   HERO · Title-screen vibe
+   ============================================================ */
+.hero{
+  position: relative; padding: 60px 28px 80px;
+  display:grid; grid-template-columns: 1.05fr 0.95fr; gap: 50px; align-items: center;
+  overflow:hidden;
+}
+.hero::before{
+  content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
+  background-image:
+    radial-gradient(circle at 20% 70%, rgba(255, 211, 121, 0.18), transparent 50%),
+    radial-gradient(circle at 80% 30%, rgba(45, 91, 209, 0.10), transparent 50%);
+}
+.hero-content{ position:relative; z-index:2; max-width: 620px; }
+.hero .crest{
+  display:inline-flex; align-items:center; gap:10px;
+  font-family:'Press Start 2P', monospace; font-size:10px;
+  background: var(--paper); color: var(--ink);
+  border: 3px solid var(--border); border-radius: 8px;
+  padding: 8px 12px; box-shadow: 3px 3px 0 var(--border);
+}
+.hero .crest .pk{ width:14px; height:14px; border-radius:50%;
+  background: linear-gradient(180deg, var(--red) 49%, #fff 49%); border:2px solid var(--border); }
+
+.hero h1{
+  margin: 22px 0 12px;
+  font-family:'Press Start 2P', monospace; font-weight: normal;
+  font-size: clamp(28px, 4.8vw, 56px); line-height: 1.18;
+  color: var(--border);
+  text-shadow:
+    3px 3px 0 #FFF,
+    6px 6px 0 var(--gold),
+    7px 7px 0 var(--border);
+  letter-spacing: 0.01em;
+}
+.hero h1 .accent{ color: var(--red); }
+.hero p.lede{
+  font-size: 19px; color: var(--ink-soft); max-width: 540px; margin: 18px 0 28px;
+}
+.hero-cta{ display:flex; flex-wrap:wrap; gap: 14px; }
+.hero-badges{
+  display:flex; flex-wrap:wrap; gap: 8px; margin-top: 32px;
+}
+.hero-badges .b{
+  font-family:'Press Start 2P', monospace; font-size: 8px;
+  padding: 7px 10px; border: 2px solid var(--border);
+  background: var(--paper); color: var(--ink);
+  border-radius: 6px; letter-spacing: 0.04em;
+  box-shadow: 2px 2px 0 var(--border);
+}
+.hero-badges .b.ok{ background: #DEFFD9; }
+.hero-badges .b.warn{ background: #FFE7BA; }
+
+/* hero stage on the right — pixel-screen frame */
+.hero-stage{
+  position: relative; aspect-ratio: 1 / 1; max-height: 600px;
+  background: linear-gradient(180deg, var(--sky-top), var(--sky-mid) 55%, var(--sky-low));
+  border: 4px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 6px 6px 0 var(--border);
+  overflow: hidden;
+}
+.hero-stage canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+.hero-stage .clouds{
+  position:absolute; inset:0; pointer-events:none;
+  background-image:
+    radial-gradient(120px 30px at 12% 22%, rgba(255,255,255,0.85), transparent 70%),
+    radial-gradient(160px 36px at 78% 18%, rgba(255,255,255,0.75), transparent 70%),
+    radial-gradient(180px 40px at 40% 38%, rgba(255,255,255,0.55), transparent 70%);
+}
+.hero-stage .ground{
+  position:absolute; left:0; right:0; bottom:0; height: 30%;
+  background:
+    linear-gradient(180deg, var(--grass-1), var(--grass-2) 70%, var(--grass-3));
+  border-top: 4px solid var(--border);
+  z-index: 1;
+}
+.hero-stage .ground::before{
+  content:""; position:absolute; inset:0;
+  background-image:
+    radial-gradient(rgba(46,122,45,0.5) 1.5px, transparent 1.5px);
+  background-size: 8px 8px;
+}
+.hero-stage .corner{
+  position:absolute; padding: 7px 10px; font-family:'Press Start 2P', monospace;
+  font-size: 8px; color: var(--ink);
+  background: var(--paper); border: 2px solid var(--border); border-radius: 6px;
+  box-shadow: 2px 2px 0 var(--border);
+  z-index: 5;
+}
+.hero-stage .corner.tl{ top: 14px; left: 14px; }
+.hero-stage .corner.tr{ top: 14px; right: 14px; color: var(--red); }
+.hero-stage .corner.bl{ bottom: 14px; left: 14px; }
+.hero-stage .corner.br{ bottom: 14px; right: 14px; }
+
+/* ============================================================
+   SECTIONS
+   ============================================================ */
+.section{
+  position: relative; z-index: 2;
+  max-width: 1380px; margin: 0 auto;
+  padding: 30px 28px 60px;
+}
+.section-head{
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;
+  margin-bottom: 22px;
+}
+.section-head .label{
+  font-family:'Press Start 2P', monospace; font-size: 9px;
+  color: var(--red); letter-spacing: 0.15em; display:block;
+  margin-bottom: 8px;
+}
+.section-head h2{
+  font-family:'Press Start 2P', monospace;
+  font-size: clamp(18px, 2.4vw, 26px);
+  line-height: 1.2;
+  color: var(--border);
+  text-shadow: 2px 2px 0 #FFF, 3px 3px 0 var(--gold);
+}
+.section-head p{ max-width: 520px; color: var(--ink-soft); margin: 0; font-size: 16px; }
+
+/* ============================================================
+   BATTLE STAGE
+   ============================================================ */
+.battle-grid{
+  display: grid; grid-template-columns: 1fr 360px; gap: 20px; align-items: stretch;
+}
+.battle-screen{
+  position: relative;
+  background: linear-gradient(180deg, var(--sky-top), var(--sky-mid) 50%, var(--sky-low) 70%);
+  border: 4px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 5px 5px 0 var(--border);
+  overflow: hidden;
+  aspect-ratio: 16 / 11;
+}
+.battle-screen canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; z-index: 1; }
+
+.battle-screen .bg-clouds{
+  position:absolute; inset:0; z-index:0;
+  background-image:
+    radial-gradient(140px 28px at 10% 18%, rgba(255,255,255,0.85), transparent 70%),
+    radial-gradient(180px 36px at 70% 12%, rgba(255,255,255,0.7), transparent 70%),
+    radial-gradient(220px 42px at 35% 30%, rgba(255,255,255,0.55), transparent 70%);
+}
+.battle-screen .bg-hills{
+  position: absolute; left:0; right:0; bottom: 32%; height: 24%;
+  z-index: 0;
+  background:
+    radial-gradient(60% 100% at 20% 100%, #79A37A 0%, #79A37A 60%, transparent 62%),
+    radial-gradient(50% 100% at 55% 100%, #6B9870 0%, #6B9870 65%, transparent 67%),
+    radial-gradient(70% 100% at 85% 100%, #5E8A66 0%, #5E8A66 60%, transparent 62%);
+}
+.battle-screen .bg-ground{
+  position: absolute; left:0; right:0; bottom:0; height: 32%;
+  z-index: 0;
+  background:
+    linear-gradient(180deg, var(--grass-1), var(--grass-2) 70%, var(--grass-3));
+  border-top: 3px solid var(--border);
+}
+.battle-screen .bg-ground::before{
+  content:""; position:absolute; inset:0;
+  background-image:
+    repeating-linear-gradient(85deg, rgba(46,122,45,0.4) 0 1px, transparent 1px 9px),
+    radial-gradient(rgba(46,122,45,0.7) 1.5px, transparent 1.5px);
+  background-size: auto, 9px 9px;
+}
+.battle-screen .platform{
+  position:absolute; bottom: 10%; left: 50%; transform: translateX(-50%);
+  width: 50%; max-width: 380px; aspect-ratio: 3 / 1;
+  background: radial-gradient(ellipse at center, #B79264 0%, #8E6E45 60%, transparent 70%);
+  border-radius: 50%;
+  z-index: 1; pointer-events:none;
+}
+
+/* HP box overlay (top-left) */
+.hp-box{
+  position: absolute; top: 16px; left: 16px; z-index: 8;
+  background: var(--paper);
+  border: 3px solid var(--border); border-radius: 6px;
+  padding: 8px 12px 10px;
+  box-shadow: 3px 3px 0 var(--border);
+  min-width: 240px;
+  font-family:'Press Start 2P', monospace;
+}
+.hp-box.empty{ opacity: 0.4; }
+.hp-box .top{ display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:10px; }
+.hp-box .top .nm{ text-transform: uppercase; letter-spacing:0.04em; }
+.hp-box .top .lv{ color: var(--red); }
+.hp-box .hp-row{ display:flex; align-items:center; gap:6px; margin-top:8px; font-size:8px; }
+.hp-box .hp-row .lbl{ color: var(--gold-deep); }
+.hp-box .bar{
+  flex:1; height: 8px; background: #B7AC81;
+  border: 2px solid var(--border); border-radius: 4px; overflow:hidden;
+}
+.hp-box .bar div{
+  height:100%; background: linear-gradient(180deg, #5FE17C, #28A249);
+  border-right: 1px solid rgba(0,0,0,0.2);
+  transition: width .3s;
+}
+.hp-box .bar.mid div{ background: linear-gradient(180deg, #FFD24E, #C28E18); }
+.hp-box .bar.low div{ background: linear-gradient(180deg, #FF7062, #B72A1D); }
+.hp-box .num{ font-family:'Press Start 2P'; font-size: 9px; margin-top: 6px; }
+
+/* status pill (top-right of battle) */
+.status-pill{
+  position: absolute; top: 16px; right: 16px; z-index: 8;
+  background: var(--paper); border: 3px solid var(--border); border-radius: 6px;
+  padding: 7px 10px; font-family:'Press Start 2P'; font-size: 8px;
+  display:flex; align-items:center; gap:7px;
+  box-shadow: 3px 3px 0 var(--border); letter-spacing: 0.04em;
+}
+.status-pill .dot{ width:8px; height:8px; border-radius:50%; background: var(--gold); box-shadow: 0 0 6px var(--gold); animation: blink 1.2s infinite; }
+.status-pill.ok .dot{ background: #5FE17C; box-shadow: 0 0 6px #5FE17C; }
+.status-pill.warn .dot{ background: var(--red); box-shadow: 0 0 6px var(--red); }
+@keyframes blink{ 50%{ opacity: .35; } }
+
+/* Battle dialog box */
+.battle-dialog{
+  position: absolute; left: 16px; right: 16px; bottom: 16px;
+  z-index: 9;
+  background: var(--paper);
+  border: 3px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 4px 4px 0 var(--border), inset 0 0 0 2px #FFF, inset 0 0 0 3px rgba(28,33,84,0.18);
+  overflow: hidden;
+  display:grid; grid-template-columns: 1fr 240px;
+}
+.battle-dialog .msg{
+  padding: 16px 18px;
+  font-size: 18px;
+  border-right: 3px dashed rgba(28,33,84,0.18);
+  line-height: 1.35;
+  display:flex; flex-direction:column; justify-content:center;
+  min-height: 90px;
+}
+.battle-dialog .msg::after{
+  content:"▼"; color: var(--red); font-size:10px;
+  align-self: flex-end; margin-top: 4px;
+  animation: bob 1s infinite;
+}
+@keyframes bob{ 50%{ transform: translateY(3px); } }
+.battle-dialog .actions{
+  display:grid; grid-template-columns: 1fr 1fr; padding:0;
+}
+.action-btn{
+  background: var(--paper); border:0; border-left: 2px dashed rgba(28,33,84,0.18);
+  border-top: 2px dashed rgba(28,33,84,0.18);
+  padding: 10px 12px;
+  font-family:'Pixelify Sans'; font-weight:600; font-size: 15px;
+  color: var(--ink); cursor:pointer; text-align:left;
+  display:flex; align-items:center; gap:8px;
+  transition: background .1s;
+}
+.action-btn:hover{ background: #FFF6D0; }
+.action-btn:disabled{ color: var(--ink-soft); opacity:.5; cursor:not-allowed; }
+.action-btn .ic{
+  width: 22px; height: 22px; border:2px solid var(--border); border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+  background: linear-gradient(180deg, var(--red) 49%, #fff 49%);
+  font-size: 8px; flex-shrink: 0;
+}
+.action-btn[data-key="ball"] .ic{ background: linear-gradient(180deg, var(--red) 49%, #fff 49%); }
+.action-btn[data-key="ar"] .ic{ background: linear-gradient(180deg, #79C9F2 49%, #fff 49%); }
+.action-btn[data-key="place"] .ic{ background: linear-gradient(180deg, var(--gold) 49%, #fff 49%); }
+.action-btn[data-key="next"] .ic{ background: linear-gradient(180deg, #79E18E 49%, #fff 49%); }
+
+/* tiny dev toggles (mesh/coll/occlusion) — below dialog */
+.dev-toggles{
+  position:absolute; right: 16px; bottom: 130px; z-index: 10;
+  display:flex; flex-direction:column; gap: 6px;
+}
+.dev-toggles .t{
+  background: var(--paper); border: 2px solid var(--border); border-radius: 5px;
+  padding: 5px 8px; font-family:'Press Start 2P'; font-size: 7px;
+  letter-spacing: 0.04em; cursor: pointer;
+  display:inline-flex; align-items:center; gap: 6px;
+  box-shadow: 2px 2px 0 var(--border);
+}
+.dev-toggles .t .led{ width:6px; height:6px; border-radius:50%; background:#BFB58A; border:1px solid var(--border); }
+.dev-toggles .t.on .led{ background:#5FE17C; box-shadow:0 0 4px #5FE17C; }
+
+/* toast popup centered */
+.toast{
+  position:absolute; left:50%; top: 38%; transform: translate(-50%,-50%);
+  z-index: 12; pointer-events:none;
+  background: var(--paper); color: var(--ink);
+  border: 3px solid var(--border); border-radius: 10px;
+  padding: 14px 22px; font-family:'Press Start 2P'; font-size: 12px;
+  box-shadow: 4px 4px 0 var(--border);
+  opacity:0; transition: opacity .2s, transform .2s;
+}
+.toast.show{ opacity:1; transform: translate(-50%, -55%); }
+.toast.success{ background: #DBFFCA; }
+.toast.fail{ background: #FFDFD8; color: var(--red-deep); }
+
+/* ============================================================
+   SIDE PANEL · trainer card + system status
+   ============================================================ */
+.side-stack{ display:flex; flex-direction: column; gap: 18px; }
+
+.trainer-card{
+  background: var(--paper);
+  border: 4px solid var(--border); border-radius: 12px;
+  box-shadow: 4px 4px 0 var(--border);
+  overflow: hidden;
+}
+.trainer-card .head{
+  background: linear-gradient(180deg, #DC3545, #B41F2E);
+  color:#fff; padding: 10px 14px;
+  font-family:'Press Start 2P'; font-size: 10px;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+  border-bottom: 3px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center;
+}
+.trainer-card .body{
+  display:grid; grid-template-columns: 80px 1fr; gap: 14px;
+  padding: 14px;
+}
+.trainer-card .avatar{
+  width: 80px; height: 80px;
+  background:
+    radial-gradient(circle at 40% 35%, #FFE36B 40%, #C68F12 60%, transparent 65%),
+    linear-gradient(180deg, #FFD24E, #C28E18);
+  border: 3px solid var(--border); border-radius: 12px;
+  position: relative; overflow:hidden;
+}
+.trainer-card .avatar::before{
+  content:""; position: absolute; left:20%; right:20%; bottom: 12%; height: 32%;
+  background: var(--red); border: 2px solid var(--border); border-radius: 8px 8px 4px 4px;
+}
+.trainer-card .avatar::after{
+  content:""; position:absolute; left:34%; right:34%; bottom: 56%; height: 12%;
+  background: #FFE0B0; border: 2px solid var(--border); border-radius: 50%;
+}
+.trainer-card .rows{ display:flex; flex-direction:column; gap: 4px; font-size: 14px; }
+.trainer-card .row{ display:flex; justify-content:space-between; }
+.trainer-card .row .k{ color: var(--ink-soft); font-family:'Press Start 2P'; font-size: 8px; letter-spacing: 0.05em; }
+.trainer-card .row .v{ font-weight:600; }
+
+/* ============================================================
+   POKÉDEX entry card
+   ============================================================ */
+.pokedex{
+  background: var(--paper); border: 4px solid var(--border); border-radius: 12px;
+  box-shadow: 5px 5px 0 var(--border);
+  overflow: hidden;
+}
+.pokedex .strap{
+  display:flex; align-items:center; gap:10px; padding: 10px 14px;
+  background: linear-gradient(180deg, #DC3545, #9F1F2D);
+  color: #fff; border-bottom: 3px solid var(--border);
+  font-family:'Press Start 2P'; font-size: 11px;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+}
+.pokedex .strap .led{ width: 16px; height:16px; border-radius:50%; background: #79DAF7;
+  border:3px solid var(--border); box-shadow: inset 0 0 4px rgba(0,0,0,0.4), 0 0 8px #79DAF7; }
+.pokedex .strap .right{ margin-left:auto; font-size: 9px; opacity:.85; }
+.pokedex .empty{
+  padding: 40px 20px; text-align:center; color: var(--ink-soft);
+}
+.pokedex .empty .icn{
+  width: 56px; height: 56px; margin: 0 auto 12px;
+  border: 3px solid var(--border); border-radius: 50%;
+  background: linear-gradient(180deg, var(--red) 49%, #fff 49%);
+  position: relative;
+}
+.pokedex .empty .icn::before{
+  content:""; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  width: 16px; height:16px; border:3px solid var(--border); border-radius:50%; background:#fff;
+}
+.pokedex .empty .icn::after{
+  content:""; position:absolute; left:0; right:0; top:50%; height:3px;
+  background: var(--border); transform: translateY(-50%);
+}
+.pokedex .body{
+  display:grid; grid-template-columns: 1fr; gap: 0;
+}
+.pokedex .sprite-area{
+  background:
+    linear-gradient(180deg, var(--sky-mid) 50%, var(--grass-1) 50%);
+  height: 180px; position: relative;
+  border-bottom: 3px solid var(--border);
+  display:flex; align-items:flex-end; justify-content:center;
+}
+.pokedex .sprite-area img{
+  height: 140px; image-rendering: pixelated;
+  margin-bottom: 16px;
+  filter: drop-shadow(2px 4px 0 rgba(0,0,0,0.18));
+}
+.pokedex .sprite-area .shadow{
+  position:absolute; left:50%; bottom:16px; transform: translateX(-50%);
+  width: 90px; height: 14px; border-radius: 50%;
+  background: rgba(28,33,84,0.32);
+}
+.pokedex .info{ padding: 14px 16px; }
+.pokedex .info .name{
+  display:flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  font-family:'Press Start 2P'; font-size: 13px; text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.pokedex .info .num{ font-family:'Press Start 2P'; font-size: 11px; color: var(--red); }
+.pokedex .info .where{
+  font-size: 13px; color: var(--ink-soft); margin-bottom: 10px;
+  font-family:'Press Start 2P'; font-size: 8px; letter-spacing: 0.05em;
+}
+.type-chips{ display:flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.type-chip{
+  font-family:'Press Start 2P'; font-size: 8px;
+  padding: 5px 9px; border-radius: 4px;
+  color: #FFF; text-transform: uppercase; letter-spacing: 0.06em;
+  border: 2px solid rgba(0,0,0,0.3);
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.35);
+}
+.t-normal{ background:#A8A77A; } .t-fire{ background:#EE8130; } .t-water{ background:#6390F0; }
+.t-electric{ background:#F7D02C; color:#3A2C00; text-shadow: 1px 1px 0 #FFF;}
+.t-grass{ background:#7AC74C; } .t-ice{ background:#96D9D6; color:#1C2244; text-shadow:1px 1px 0 #FFF;}
+.t-fighting{ background:#C22E28; } .t-poison{ background:#A33EA1; }
+.t-ground{ background:#E2BF65; color:#3A2C00; text-shadow:1px 1px 0 #FFF;} .t-flying{ background:#A98FF3; }
+.t-psychic{ background:#F95587; } .t-bug{ background:#A6B91A; }
+.t-rock{ background:#B6A136; } .t-ghost{ background:#735797; }
+.t-dragon{ background:#6F35FC; } .t-dark{ background:#705746; }
+.t-steel{ background:#B7B7CE; color:#1C2244; text-shadow:1px 1px 0 #FFF;}
+.t-fairy{ background:#D685AD; }
+
+.meta-grid{
+  display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px;
+  background: var(--border); border: 2px solid var(--border); border-radius: 6px;
+  overflow: hidden; margin-bottom: 12px;
+}
+.meta-grid .cell{ background: var(--paper-2); padding: 7px 10px; }
+.meta-grid .k{ font-family:'Press Start 2P'; font-size: 7px; color: var(--ink-soft); letter-spacing: 0.05em; }
+.meta-grid .v{ font-size: 15px; font-weight:600; margin-top: 1px; }
+
+.stat-row{ display:grid; grid-template-columns: 60px 1fr 32px; gap:8px; align-items:center; font-family:'Press Start 2P'; font-size: 8px; margin-bottom: 5px; }
+.stat-row .lbl{ color: var(--ink-soft); }
+.stat-row .bar{ height: 9px; background: #DACFA0; border: 2px solid var(--border); border-radius: 3px; overflow:hidden; }
+.stat-row .bar div{ height:100%; background: linear-gradient(180deg, var(--gold), var(--gold-deep)); }
+.stat-row .stat-num{ text-align: right; }
+
+/* ============================================================
+   FILTERS · Town map, badges, types
+   ============================================================ */
+.filter-grid{
+  display: grid; gap: 18px;
+  grid-template-columns: 1.5fr 1fr 1fr;
+}
+
+/* Town Map · regions */
+.town-map{
+  position: relative;
+  background:
+    linear-gradient(180deg, #A2D8E8 0%, #BFE6F0 30%, #E1CD8E 50%, #C8AA64 100%);
+  border: 4px solid var(--border); border-radius: 12px;
+  box-shadow: 4px 4px 0 var(--border);
+  padding: 14px; min-height: 360px; overflow: hidden;
+}
+.town-map .label{
+  position:absolute; top: 12px; left: 12px; z-index: 4;
+  font-family:'Press Start 2P'; font-size: 10px;
+  background: var(--paper); border: 2px solid var(--border);
+  padding: 7px 10px; border-radius: 6px; box-shadow: 2px 2px 0 var(--border);
+}
+.town-map .compass{
+  position:absolute; top: 12px; right: 12px; z-index:4;
+  width: 36px; height: 36px; border-radius:50%;
+  background: var(--paper); border:3px solid var(--border);
+  box-shadow: 2px 2px 0 var(--border);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Press Start 2P'; font-size: 9px;
+}
+.town-map .map-area{
+  position:absolute; inset: 50px 14px 70px 14px;
+  background:
+    /* water/coast */
+    radial-gradient(ellipse 60% 60% at 0% 100%, #76B6E2 0 60%, transparent 62%),
+    radial-gradient(ellipse 40% 70% at 100% 0%, #76B6E2 0 60%, transparent 62%),
+    /* land */
+    linear-gradient(180deg, #C8E599 0%, #A0CB6B 60%, #D5B673 100%);
+  border: 3px solid var(--border); border-radius: 10px;
+  box-shadow: inset 0 0 0 2px #FFFCEC, inset 0 0 0 3px rgba(28,33,84,0.18);
+  overflow: hidden;
+}
+.town-map .map-area::before{
+  /* faint paths */
+  content:""; position:absolute; inset:0;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(115, 88, 33, 0.18) 0 2px, transparent 2px 7px);
+  opacity:.4;
+}
+.town-map .map-area::after{
+  /* dotted grid */
+  content:""; position:absolute; inset:0;
+  background-image: radial-gradient(rgba(28,33,84,0.10) 1px, transparent 1px);
+  background-size: 9px 9px;
+}
+
+.region-pin{
+  position:absolute; z-index:3;
+  display:flex; flex-direction:column; align-items:center; gap: 4px;
+  cursor: pointer; user-select:none;
+}
+.region-pin .dot{
+  width: 18px; height: 18px; border-radius:50%;
+  background: var(--paper);
+  border: 3px solid var(--border);
+  box-shadow: 2px 2px 0 var(--border);
+  transition: transform .15s;
+}
+.region-pin:hover .dot{ transform: translateY(-2px) scale(1.1); background: var(--gold); }
+.region-pin.active .dot{ background: var(--red); animation: pin-pulse 1s infinite; }
+@keyframes pin-pulse{ 50%{ box-shadow: 2px 2px 0 var(--border), 0 0 0 6px rgba(220,53,69,0.3); } }
+.region-pin .nm{
+  font-family:'Press Start 2P'; font-size: 8px;
+  background: var(--paper); border: 2px solid var(--border); border-radius: 4px;
+  padding: 3px 6px; letter-spacing: 0.04em;
+  white-space: nowrap;
+  box-shadow: 2px 2px 0 var(--border);
+}
+.region-pin.active .nm{ background: var(--gold); }
+
+.town-map .scroll{
+  position:absolute; left:14px; right:14px; bottom: 14px; z-index: 4;
+  background: var(--paper); border: 2px solid var(--border); border-radius: 6px;
+  padding: 7px 10px; font-family:'Press Start 2P'; font-size: 8px;
+  letter-spacing: 0.04em;
+  box-shadow: 2px 2px 0 var(--border);
+  display: flex; justify-content:space-between;
+}
+
+/* Generation badges */
+.badge-card{
+  background: var(--paper);
+  border: 4px solid var(--border); border-radius: 12px;
+  box-shadow: 4px 4px 0 var(--border);
+  padding: 14px;
+}
+.badge-card h3{
+  font-family:'Press Start 2P'; font-size: 10px; margin: 0 0 4px;
+  color: var(--border);
+}
+.badge-card .sub{ font-family:'Press Start 2P'; font-size: 7px; color: var(--ink-soft); letter-spacing: 0.06em; margin-bottom: 12px; }
+.badge-grid{
+  display:grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 10px;
+}
+.gen-badge{ max-width: 110px; }
+.gen-badge{
+  position: relative; aspect-ratio: 1;
+  border: 3px solid var(--border); border-radius: 8px;
+  background: var(--paper);
+  box-shadow: 2px 2px 0 var(--border);
+  cursor: pointer;
+  transition: transform .1s, background .15s;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap: 3px; padding: 4px;
+  font-family:'Press Start 2P';
+}
+.gen-badge:hover{ transform: translate(1px,1px); box-shadow: 1px 1px 0 var(--border); background: #FFF6D0; }
+.gen-badge .num{ font-size: 14px; color: var(--border); }
+.gen-badge .nm{ font-size: 7px; color: var(--ink-soft); letter-spacing: 0.04em; text-align:center; }
+.gen-badge.active{
+  background: linear-gradient(180deg, var(--gold), var(--gold-deep));
+  animation: badge-flash 1.4s infinite;
+}
+.gen-badge.active .num, .gen-badge.active .nm{ color:#FFF; text-shadow: 1px 1px 0 var(--border); }
+@keyframes badge-flash{
+  0%,100%{ box-shadow: 2px 2px 0 var(--border); }
+  50%{ box-shadow: 2px 2px 0 var(--border), 0 0 0 4px rgba(242,185,57,0.5); }
+}
+
+/* Type chips card */
+.type-card{
+  background: var(--paper); border:4px solid var(--border); border-radius: 12px;
+  box-shadow: 4px 4px 0 var(--border); padding: 14px;
+}
+.type-card h3{ font-family:'Press Start 2P'; font-size: 10px; margin: 0 0 4px; color: var(--border); }
+.type-card .sub{ font-family:'Press Start 2P'; font-size: 7px; color: var(--ink-soft); letter-spacing: 0.06em; margin-bottom: 12px; }
+.type-grid{
+  display:grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px;
+}
+.type-grid .type-chip{
+  cursor: pointer; opacity: 0.55; transition: opacity .15s, transform .1s;
+  border: 2px solid var(--border);
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
+  text-align:center; padding: 7px 6px;
+}
+.type-grid .type-chip:hover{ opacity:.9; transform: translate(1px,1px); box-shadow: 1px 1px 0 rgba(0,0,0,0.4); }
+.type-grid .type-chip.active{ opacity: 1; box-shadow: 2px 2px 0 var(--border), 0 0 0 2px var(--gold) inset; }
+
+/* Sprite-style + toggles card (under types) */
+.options-card{
+  margin-top: 12px;
+  background: var(--paper-2); border:2px dashed rgba(28,33,84,0.3); border-radius: 8px;
+  padding: 10px;
+}
+.options-card label{
+  display:block; font-family:'Press Start 2P'; font-size: 7px; color: var(--ink-soft);
+  letter-spacing: 0.05em; margin-bottom: 4px;
+}
+.options-card select{
+  width:100%; padding: 7px 9px; font-family:'Pixelify Sans'; font-size: 14px;
+  background: var(--paper); color: var(--ink);
+  border: 2px solid var(--border); border-radius: 6px;
+}
+.options-card .toggles{ display:flex; gap: 6px; margin-top: 10px; flex-wrap:wrap; }
+.opt-tog{
+  display:inline-flex; align-items:center; gap:6px;
+  padding: 6px 9px; background: var(--paper);
+  border: 2px solid var(--border); border-radius: 6px;
+  font-family:'Press Start 2P'; font-size: 8px; cursor: pointer;
+  letter-spacing: 0.05em;
+}
+.opt-tog .led{ width:7px; height:7px; border-radius:50%; background:#BFB58A; border:1px solid var(--border); }
+.opt-tog.on .led{ background:#5FE17C; box-shadow: 0 0 4px #5FE17C; }
+.opt-tog.on{ background: #FFF6D0; }
+
+/* ============================================================
+   PC STORAGE (inventory)
+   ============================================================ */
+.pc-storage{
+  background:
+    linear-gradient(180deg, #DEEAF8 0%, #C0D2EA 100%);
+  border:4px solid var(--border); border-radius: 14px;
+  box-shadow: 5px 5px 0 var(--border);
+  padding: 0; overflow: hidden;
+}
+.pc-storage .strap{
+  background: linear-gradient(180deg, #2D5BD1, #1A3A99);
+  color:#fff; padding: 10px 14px;
+  font-family:'Press Start 2P'; font-size: 11px;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+  border-bottom: 3px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center;
+}
+.pc-storage .strap .controls{ display:flex; gap:6px; }
+.pc-storage .strap .controls button{
+  background: var(--paper); color: var(--ink);
+  border: 2px solid var(--border); border-radius: 5px;
+  padding: 5px 8px; font-family:'Press Start 2P'; font-size: 8px;
+  cursor: pointer; letter-spacing: 0.05em;
+}
+.pc-storage .body{ padding: 14px; }
+.pc-grid{
+  display:grid; grid-template-columns: repeat(6, 1fr); gap: 8px;
+}
+@media (max-width: 700px){ .pc-grid{ grid-template-columns: repeat(4, 1fr); } }
+.pc-cell{
+  aspect-ratio:1; border: 3px solid var(--border); border-radius: 8px;
+  background: var(--paper);
+  box-shadow: 2px 2px 0 var(--border);
+  display:flex; align-items:center; justify-content:center; position: relative;
+  cursor: pointer; transition: transform .1s, background .15s;
+  overflow:hidden;
+}
+.pc-cell:hover{ transform: translateY(-2px); background: #FFF6D0; }
+.pc-cell img{ max-width: 80%; max-height: 80%; image-rendering: pixelated; }
+.pc-cell .nm{
+  position:absolute; left:0; right:0; bottom:0;
+  font-family:'Press Start 2P'; font-size: 7px;
+  background: rgba(0,0,0,0.65); color:#FFF;
+  text-align:center; padding: 3px 2px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+}
+.pc-cell.empty{
+  background:
+    radial-gradient(circle at center, transparent 30%, rgba(28,33,84,0.05) 32%, transparent 34%);
+}
+.pc-cell.empty::after{
+  content:""; width: 28px; height: 28px; border-radius:50%;
+  background: linear-gradient(180deg, rgba(220,53,69,0.18) 49%, rgba(255,255,255,0.4) 49%);
+  border: 2px solid rgba(28,33,84,0.2);
+  position: relative;
+}
+.pc-cell.shiny::before{
+  content:""; position:absolute; top:4px; right:4px;
+  width:8px; height:8px; background: var(--gold); transform: rotate(45deg);
+  border:1px solid var(--border);
+}
+
+/* ============================================================
+   Tech / system cards
+   ============================================================ */
+.tech-grid{
+  display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+}
+.tech-card{
+  background: var(--paper); border:3px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; box-shadow: 3px 3px 0 var(--border);
+}
+.tech-card .tag{
+  display:inline-block; font-family:'Press Start 2P'; font-size: 7px;
+  background: var(--red); color:#FFF; padding: 3px 6px; border-radius: 4px;
+  letter-spacing: 0.05em; margin-bottom: 8px;
+}
+.tech-card h4{
+  margin: 0 0 4px; font-family:'Press Start 2P'; font-size: 10px;
+  color: var(--border);
+}
+.tech-card p{ margin: 0; font-size: 14px; color: var(--ink-soft); }
+
+/* ============================================================
+   LEGAL · scroll-style notice
+   ============================================================ */
+.legal{
+  margin-top: 30px;
+  background: #FFF8D4;
+  border: 4px solid var(--border); border-radius: 12px;
+  padding: 18px 22px;
+  box-shadow: 4px 4px 0 var(--border);
+  display: grid; grid-template-columns: 70px 1fr; gap: 18px; align-items:flex-start;
+}
+.legal .seal{
+  width:70px; height: 70px; border-radius: 50%;
+  background: linear-gradient(180deg, var(--red) 49%, #fff 49%);
+  border: 4px solid var(--border);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.4), 3px 3px 0 var(--border);
+  position: relative; flex-shrink: 0;
+}
+.legal .seal::before{
+  content:"!"; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  font-family:'Press Start 2P'; font-size: 22px;
+  background: #FFF; width: 26px; height: 26px;
+  border: 3px solid var(--border); border-radius: 50%;
+  display:flex; align-items:center; justify-content:center; color: var(--red);
+}
+.legal h4{
+  margin: 0 0 6px; font-family:'Press Start 2P'; font-size: 11px; color: var(--border);
+}
+.legal p{ margin: 0; color: var(--ink-soft); font-size: 15px; }
+.legal ul{ margin: 8px 0 0; padding-left: 22px; font-size: 14px; }
+.legal ul li{ margin-bottom: 3px; }
+
+/* footer */
+footer{
+  padding: 28px;
+  border-top: 3px dashed rgba(28,33,84,0.25);
+  display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 14px;
+  color: var(--ink-soft);
+  font-family:'Press Start 2P'; font-size: 8px;
+  letter-spacing: 0.06em;
+}
+
+.spinner{
+  display: inline-block; width:14px; height:14px; border-radius:50%;
+  border: 2px solid var(--border); border-top-color: transparent;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin{ 100%{ transform: rotate(360deg); } }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 1100px){
+  .hero{ grid-template-columns: 1fr; padding: 30px 22px 40px; gap: 30px; }
+  .hero h1{ font-size: 34px; }
+  .hero-stage{ max-height: 480px; }
+  .battle-grid{ grid-template-columns: 1fr; }
+  .filter-grid{ grid-template-columns: 1fr; }
+  .tech-grid{ grid-template-columns: 1fr 1fr; }
+  .legal{ grid-template-columns: 1fr; }
+}
+@media (max-width: 640px){
+  body{ font-size: 16px; }
+  .app-header{ flex-wrap: wrap; }
+  .app-header nav{ display:none; }
+  .app-header .controls{ padding: 8px 10px; }
+  .section{ padding: 20px 14px 40px; }
+  .hero{ padding: 26px 14px 30px; }
+  .hero h1{ font-size: 26px; }
+  .battle-dialog{ grid-template-columns: 1fr; }
+  .battle-dialog .actions{ border-top: 3px dashed rgba(28,33,84,0.18); }
+  .battle-dialog .msg{ border-right: 0; border-bottom: 3px dashed rgba(28,33,84,0.18); min-height: 0; }
+  .hp-box{ min-width: 0; left: 10px; top: 10px; padding: 6px 9px; }
+  .hp-box .top{ font-size: 8px; }
+  .tech-grid{ grid-template-columns: 1fr; }
+  .pc-grid{ grid-template-columns: repeat(4, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     APP HEADER · pixel title bar
+     ============================================================ -->
+<header class="app-header">
+  <div class="brand">
+    <div class="pokeball"></div>
+    <div class="ttl">POCKET&nbsp;·&nbsp;AR <small>EDUCATIONAL PROTOTYPE</small></div>
+  </div>
+  <nav>
+    <a href="#battle">▸ BATTLE</a>
+    <a href="#map">▸ TOWN MAP</a>
+    <a href="#dex">▸ POKÉDEX</a>
+    <a href="#pc">▸ PC BOX</a>
+    <a href="#tech">▸ SYSTEM</a>
+  </nav>
+  <div class="controls">
+    <button class="hdr-btn" id="btn-music"><span class="led"></span>♪ MUSIC</button>
+    <button class="hdr-btn on" id="btn-sfx"><span class="led"></span>SFX</button>
+  </div>
+</header>
+
+<!-- ============================================================
+     HERO · title-screen vibe
+     ============================================================ -->
+<section class="hero">
+  <div class="hero-content">
+    <span class="crest"><span class="pk"></span>WEBXR · THREE.JS · POKÉAPI</span>
+    <h1>Pocket<br/><span class="accent">AR Encounter</span></h1>
+    <p class="lede">A wild creature appears wherever you point your phone. Every generation and region is fetched live from the PokéAPI, sprites are projected through WebXR, and a full pixel-art 3D arena takes over when AR isn't supported.</p>
+    <div class="hero-cta">
+      <button class="btn primary" id="cta-ar">▸ START AR</button>
+      <button class="btn blue no-arrow" id="cta-demo">▾ TRY THE DEMO</button>
+    </div>
+    <div class="hero-badges">
+      <span class="b ok">▣ WEBXR</span>
+      <span class="b">▣ HIT-TEST</span>
+      <span class="b">▣ ALL REGIONS</span>
+      <span class="b">▣ PROCEDURAL OST</span>
+      <span class="b warn">▣ FAN PROTOTYPE</span>
+    </div>
+  </div>
+
+  <div class="hero-stage" id="hero-stage">
+    <div class="clouds"></div>
+    <canvas id="hero-canvas"></canvas>
+    <div class="ground"></div>
+    <div class="corner tl">▲ POCKET-AR</div>
+    <div class="corner tr">REC ●</div>
+    <div class="corner bl">ROUTE 0</div>
+    <div class="corner br" id="hero-region-tag">KANTO · JOHTO · HOENN · ...</div>
+  </div>
+</section>
+
+<!-- ============================================================
+     BATTLE / ENCOUNTER SCREEN
+     ============================================================ -->
+<section class="section" id="battle">
+  <div class="section-head">
+    <div>
+      <span class="label">▸ 01 · ENCOUNTER</span>
+      <h2>A wild creature stage.</h2>
+    </div>
+    <p>The Three.js canvas runs a pixel-perfect battle scene. In WebXR it anchors the sprite onto your scanned plane; otherwise the orbit camera fallback takes over with the same physics, props, and capture loop.</p>
+  </div>
+
+  <div class="battle-grid">
+    <div class="battle-screen" id="stage">
+      <div class="bg-clouds"></div>
+      <div class="bg-hills"></div>
+      <div class="bg-ground"></div>
+      <div class="platform"></div>
+      <canvas id="ar-canvas"></canvas>
+
+      <!-- HP overlay -->
+      <div class="hp-box empty" id="hp-box">
+        <div class="top">
+          <span class="nm" id="hp-name">— — —</span>
+          <span class="lv" id="hp-lv">Lv.??</span>
+        </div>
+        <div class="hp-row">
+          <span class="lbl">HP</span>
+          <div class="bar" id="hp-bar"><div style="width:100%"></div></div>
+        </div>
+        <div class="num"><span id="hp-num">000</span><span style="color:var(--ink-soft)">/000</span></div>
+      </div>
+
+      <!-- status pill -->
+      <div class="status-pill warn" id="status-pill">
+        <span class="dot"></span><span id="state-label">CHECKING WEBXR…</span>
+      </div>
+
+      <!-- dev toggles -->
+      <div class="dev-toggles">
+        <button class="t" id="tog-mesh"><span class="led"></span>MESH</button>
+        <button class="t" id="tog-coll"><span class="led"></span>COLLIDERS</button>
+        <button class="t" id="tog-occl"><span class="led"></span>OCCLUSION</button>
+      </div>
+
+      <!-- toast -->
+      <div class="toast" id="toast">A wild creature appeared!</div>
+
+      <!-- dialog box -->
+      <div class="battle-dialog">
+        <div class="msg" id="dialog-msg">Tap <b>NEXT ENCOUNTER</b> to roll a wild creature from the selected region.</div>
+        <div class="actions">
+          <button class="action-btn" data-key="ball" id="btn-capture"><span class="ic"></span>POKÉ BALL</button>
+          <button class="action-btn" data-key="ar"   id="btn-ar"><span class="ic"></span>AR MODE</button>
+          <button class="action-btn" data-key="place" id="btn-throw"><span class="ic"></span>PLACE</button>
+          <button class="action-btn" data-key="next" id="btn-spawn"><span class="ic"></span>NEXT ENCOUNTER</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- side panel -->
+    <div class="side-stack">
+      <div class="trainer-card">
+        <div class="head"><span>◤ TRAINER CARD</span><span id="trainer-id">ID 04217</span></div>
+        <div class="body">
+          <div class="avatar"></div>
+          <div class="rows">
+            <div class="row"><span class="k">NAME</span><span class="v">YOU</span></div>
+            <div class="row"><span class="k">CAUGHT</span><span class="v" id="t-caught">0</span></div>
+            <div class="row"><span class="k">REGION</span><span class="v" id="t-region">—</span></div>
+            <div class="row"><span class="k">GEN</span><span class="v" id="t-gen">—</span></div>
+            <div class="row"><span class="k">TIME</span><span class="v" id="t-time">00:00</span></div>
+            <div class="row"><span class="k">CACHE</span><span class="v" id="t-cache">0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pokédex entry -->
+      <div class="pokedex" id="pokedex">
+        <div class="strap">
+          <span class="led"></span>
+          <span>◢ POKÉDEX DATA</span>
+          <span class="right" id="dex-mode">NO. ???</span>
+        </div>
+        <div class="empty" id="dex-empty">
+          <div class="icn"></div>
+          <div style="font-family:'Press Start 2P'; font-size:9px; letter-spacing:0.08em;">NO DATA</div>
+          <p style="margin:8px 0 0; font-size:14px;">Generate an encounter to fill the Pokédex.</p>
+        </div>
+        <div class="body" id="dex-body" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     TOWN MAP / Generations / Types
+     ============================================================ -->
+<section class="section" id="map">
+  <div class="section-head">
+    <div>
+      <span class="label">▸ 02 · FIELD GUIDE</span>
+      <h2>Pick your region.</h2>
+    </div>
+    <p>Regions and generations are fetched live — not hardcoded. Tap a Town Map pin or a Gym Badge to filter the encounter pool by that region's main generation.</p>
+  </div>
+
+  <div class="filter-grid">
+    <!-- Town Map -->
+    <div class="town-map">
+      <div class="label">◣ TOWN MAP</div>
+      <div class="compass">N</div>
+      <div class="map-area" id="map-area">
+        <!-- region pins injected here -->
+      </div>
+      <div class="scroll">
+        <span id="map-count">… REGIONS</span>
+        <span id="map-selected" style="color:var(--red)">NO REGION SELECTED</span>
+      </div>
+    </div>
+
+    <!-- Generations -->
+    <div class="badge-card">
+      <h3>◣ GYM BADGES</h3>
+      <div class="sub" id="gen-sub">GENERATIONS · LIVE FROM POKÉAPI</div>
+      <div class="badge-grid" id="gens"></div>
+    </div>
+
+    <!-- Types + style -->
+    <div class="type-card">
+      <h3>◣ TYPE LENS</h3>
+      <div class="sub">FILTER BY ELEMENTAL TYPE</div>
+      <div class="type-grid" id="types"></div>
+      <div class="options-card">
+        <label>SPRITE STYLE</label>
+        <select id="sprite-style">
+          <option value="showdown">SHOWDOWN · ANIMATED</option>
+          <option value="genv">GEN V · ANIMATED</option>
+          <option value="front">CLASSIC FRONT</option>
+          <option value="home">HOME ARTWORK</option>
+          <option value="official">OFFICIAL ARTWORK</option>
+        </select>
+        <div class="toggles">
+          <div class="opt-tog" id="tog-shiny"><span class="led"></span>SHINY</div>
+          <div class="opt-tog on" id="tog-cry"><span class="led"></span>CRY</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     PC STORAGE (inventory)
+     ============================================================ -->
+<section class="section" id="pc">
+  <div class="section-head">
+    <div>
+      <span class="label">▸ 03 · STORAGE</span>
+      <h2>PC Box · captured.</h2>
+    </div>
+  </div>
+  <div class="pc-storage">
+    <div class="strap">
+      <span>◢ BILL'S PC · BOX 01</span>
+      <div class="controls">
+        <button id="btn-clear">▸ RELEASE ALL</button>
+      </div>
+    </div>
+    <div class="body">
+      <div class="pc-grid" id="inv-grid"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SYSTEM (Tech)
+     ============================================================ -->
+<section class="section" id="tech">
+  <div class="section-head">
+    <div>
+      <span class="label">▸ 04 · UNDER THE HOOD</span>
+      <h2>Systems.</h2>
+    </div>
+    <p>Every system below is a real JavaScript class in this single file — no build step.</p>
+  </div>
+  <div class="tech-grid">
+    <div class="tech-card"><span class="tag">CLASS</span><h4>APIService</h4><p>PokéAPI fetcher with in-memory + localStorage cache. Sprite chain: Showdown → Gen V → Front → Home → Official.</p></div>
+    <div class="tech-card"><span class="tag">CLASS</span><h4>AudioManager</h4><p>Procedural pad + arpeggio music, Web Audio SFX (scan, spawn, ball-throw, shake, capture, escape), and <code>cries.latest</code> playback.</p></div>
+    <div class="tech-card"><span class="tag">CLASS</span><h4>ARScene</h4><p>Three.js + WebXR <code>hit-test</code>, animated reticle, controller-tap placement, virtual props anchored to the scanned plane.</p></div>
+    <div class="tech-card"><span class="tag">CLASS</span><h4>FallbackScene</h4><p>Pixel-art battle stage with orbit camera, click-to-place, virtual grass/rocks/portal, same physics and capture flow.</p></div>
+    <div class="tech-card"><span class="tag">CLASS</span><h4>CreatureSprite</h4><p>Billboard sprite with type aura, scale from real height, idle bobbing, jump, hit-flash, capture shake, flee dash.</p></div>
+    <div class="tech-card"><span class="tag">CLASS</span><h4>SimplePhysics</h4><p>Gravity, ground collision, prop colliders, arena bounds, bounce, ground-tracking fake shadow.</p></div>
+    <div class="tech-card"><span class="tag">CLASS</span><h4>CaptureSystem</h4><p>Chance based on base HP, weight, simulated rarity, reticle distance + type. Persists inventory to localStorage.</p></div>
+    <div class="tech-card"><span class="tag">FX</span><h4>Type Auras</h4><p>Eleven elemental halos — electric sparks, fire glow, water bubbles, grass leaves, ghost mist, psychic rings, dragon spiral…</p></div>
+  </div>
+
+  <div class="legal">
+    <div class="seal"></div>
+    <div>
+      <h4>EDUCATIONAL PROTOTYPE · NOT OFFICIAL</h4>
+      <p>This is a non-commercial fan / research prototype. Pokémon and all related assets belong to their respective rights-holders.</p>
+      <ul>
+        <li>No official logos, music, or audio extracted from games.</li>
+        <li>Sprite + species data from the public PokéAPI for prototyping only.</li>
+        <li>For public / commercial release, swap creatures, sprites and audio for original licensed assets.</li>
+        <li>Music is generated in-browser via the Web Audio API. SFX are procedural.</li>
+        <li>Responses are cached to respect API limits.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>POCKET·AR · EDUCATIONAL PROTOTYPE · v0.2</span>
+  <span>THREE.JS · WEBXR · POKÉAPI · WEB AUDIO</span>
+</footer>
+
+<!-- ============================================================
+     SCRIPTS
+     ============================================================ -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { ARButton } from 'three/addons/webxr/ARButton.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ========================================================
+   APIService — PokéAPI with cache + sprite fallback chain
+   ======================================================== */
+class APIService {
+  constructor(){
+    this.base = 'https://pokeapi.co/api/v2';
+    this.mem  = new Map();
+    this.lsKey = 'pae:cache:v2';
+    this._loadLS();
+  }
+  _loadLS(){
+    try{
+      const raw = localStorage.getItem(this.lsKey);
+      if(raw){ const obj = JSON.parse(raw); Object.entries(obj).forEach(([k,v])=>this.mem.set(k,v)); }
+    }catch(e){}
+  }
+  _saveLS(){
+    try{
+      const subset = {};
+      this.mem.forEach((v,k)=>{
+        if(/generation|region|pokedex|type\//.test(k)) subset[k]=v;
+      });
+      localStorage.setItem(this.lsKey, JSON.stringify(subset));
+    }catch(e){}
+  }
+  cacheGet(k){ return this.mem.get(k); }
+  cacheSet(k,v){ this.mem.set(k,v); this._saveLS(); return v; }
+  async _get(path){
+    const url = this.base + path;
+    if(this.mem.has(url)) return this.mem.get(url);
+    try{
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const json = await res.json();
+      this.mem.set(url, json);
+      this._saveLS();
+      return json;
+    }catch(err){
+      console.warn('[api]', url, err);
+      return null;
+    }
+  }
+  getPokemon(idOrName){ return this._get(`/pokemon/${idOrName}`); }
+  getSpecies(idOrName){ return this._get(`/pokemon-species/${idOrName}`); }
+  getType(name){ return this._get(`/type/${name}`); }
+  getAllGenerations(){ return this._get(`/generation?limit=50`); }
+  getGeneration(id){ return this._get(`/generation/${id}`); }
+  getAllRegions(){ return this._get(`/region?limit=50`); }
+  getRegion(id){ return this._get(`/region/${id}`); }
+  getPokedex(id){ return this._get(`/pokedex/${id}`); }
+
+  getBestSprite(p, style='showdown'){
+    if(!p?.sprites) return null;
+    const s = p.sprites;
+    const chain = {
+      showdown: [
+        s.other?.showdown?.front_default,
+        s.versions?.['generation-v']?.['black-white']?.animated?.front_default,
+        s.front_default,
+        s.other?.home?.front_default,
+        s.other?.['official-artwork']?.front_default,
+      ],
+      genv: [
+        s.versions?.['generation-v']?.['black-white']?.animated?.front_default,
+        s.other?.showdown?.front_default,
+        s.front_default,
+        s.other?.home?.front_default,
+      ],
+      front: [s.front_default, s.other?.home?.front_default, s.other?.['official-artwork']?.front_default],
+      home:  [s.other?.home?.front_default, s.front_default, s.other?.['official-artwork']?.front_default],
+      official:[s.other?.['official-artwork']?.front_default, s.other?.home?.front_default, s.front_default],
+    }[style] || [];
+    return chain.find(u=>u) || s.front_default;
+  }
+  getShinySprite(p, style='showdown'){
+    if(!p?.sprites) return null;
+    const s = p.sprites;
+    return s.other?.showdown?.front_shiny
+        || s.versions?.['generation-v']?.['black-white']?.animated?.front_shiny
+        || s.front_shiny
+        || s.other?.home?.front_shiny
+        || this.getBestSprite(p, style);
+  }
+  getCryUrl(p){
+    return p?.cries?.latest || p?.cries?.legacy || null;
+  }
+  async getRandomEncounter(filters){
+    const { generation, region, type } = filters;
+    let pool = null;
+    if(type){
+      const t = await this.getType(type);
+      pool = t?.pokemon?.map(x=>x.pokemon.name) || null;
+    }
+    if(generation){
+      const g = await this.getGeneration(generation);
+      const gNames = g?.pokemon_species?.map(s=>s.name) || [];
+      pool = pool ? pool.filter(n=>gNames.includes(n)) : gNames;
+    }
+    if(region && !generation){
+      const r = await this.getRegion(region);
+      const genUrl = r?.main_generation?.url;
+      if(genUrl){
+        const id = genUrl.split('/').filter(Boolean).pop();
+        const g = await this.getGeneration(id);
+        const gNames = g?.pokemon_species?.map(s=>s.name) || [];
+        pool = pool ? pool.filter(n=>gNames.includes(n)) : gNames;
+      }
+    }
+    if(!pool || !pool.length){
+      const id = 1 + Math.floor(Math.random()*898);
+      return this.getPokemon(id);
+    }
+    const pick = pool[Math.floor(Math.random()*pool.length)];
+    return this.getPokemon(pick);
+  }
+}
+
+/* ========================================================
+   AudioManager — procedural chiptune + SFX + cry
+   ======================================================== */
+class AudioManager{
+  constructor(){
+    this.ctx = null;
+    this.musicGain = null;
+    this.sfxGain = null;
+    this.musicOn = false;
+    this.sfxOn = true;
+    this.musicNodes = [];
+    this.cryEl = null;
+  }
+  unlock(){
+    if(this.ctx) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    this.ctx = new Ctx();
+    this.musicGain = this.ctx.createGain(); this.musicGain.gain.value = 0.0; this.musicGain.connect(this.ctx.destination);
+    this.sfxGain = this.ctx.createGain();  this.sfxGain.gain.value  = 0.5; this.sfxGain.connect(this.ctx.destination);
+  }
+  _osc(freq, dur, type='sine', gainStart=0.3, attack=0.005, out=null){
+    if(!this.sfxOn || !this.ctx) return;
+    const ctx = this.ctx;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(gainStart, ctx.currentTime + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+    o.connect(g); g.connect(out || this.sfxGain);
+    o.start(); o.stop(ctx.currentTime + dur + 0.02);
+    return {o,g};
+  }
+  playSfx(name){
+    if(!this.ctx || !this.sfxOn) return;
+    switch(name){
+      case 'click':   this._osc(700, 0.06, 'square', 0.18); break;
+      case 'select':  this._osc(520, 0.05, 'square', 0.2); setTimeout(()=>this._osc(780,0.06,'square',0.18), 60); break;
+      case 'scan':    [400,520,640,760].forEach((f,i)=>setTimeout(()=>this._osc(f,0.08,'square',0.18), i*70)); break;
+      case 'surface': this._osc(880, 0.12, 'triangle', 0.25); setTimeout(()=>this._osc(1320,0.15,'triangle',0.2), 100); break;
+      case 'spawn':   [659,784,988,1318].forEach((f,i)=>setTimeout(()=>this._osc(f,0.1,'square',0.22), i*55)); break;
+      case 'jump':    this._osc(540, 0.08, 'square', 0.2); setTimeout(()=>this._osc(780,0.06,'square',0.18), 70); break;
+      case 'throw':   this._osc(300, 0.12, 'square', 0.22); setTimeout(()=>this._osc(180,0.1,'square',0.18), 80); break;
+      case 'shake':   this._osc(180, 0.05, 'square', 0.2); setTimeout(()=>this._osc(220,0.05,'square',0.16),60); break;
+      case 'capture': [262,330,392,523,659,784].forEach((f,i)=>setTimeout(()=>this._osc(f,0.12,'square',0.22), i*90)); break;
+      case 'escape':  [523,392,330,262,196].forEach((f,i)=>setTimeout(()=>this._osc(f,0.12,'sawtooth',0.22), i*100)); break;
+      default: this._osc(440, 0.08, 'square', 0.18);
+    }
+  }
+  playCry(url){
+    if(!this.sfxOn || !url) return;
+    try{
+      if(this.cryEl){ this.cryEl.pause(); }
+      this.cryEl = new Audio(url);
+      this.cryEl.volume = 0.45;
+      this.cryEl.crossOrigin = 'anonymous';
+      this.cryEl.play().catch(()=>{});
+    }catch(e){}
+  }
+  startMusic(){
+    this.unlock();
+    if(!this.ctx || this.musicOn) return;
+    this.musicOn = true;
+    this.musicGain.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.musicGain.gain.linearRampToValueAtTime(0.13, this.ctx.currentTime + 1.4);
+
+    const ctx = this.ctx;
+    // Pad (two detuned sines under a lowpass)
+    const pad = ctx.createOscillator();  pad.type='triangle';  pad.frequency.value = 130.8;
+    const pad2 = ctx.createOscillator(); pad2.type='triangle'; pad2.frequency.value = 196.0;
+    const lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = 900;
+    const padG = ctx.createGain(); padG.gain.value = 0.13;
+    pad.connect(lp); pad2.connect(lp); lp.connect(padG); padG.connect(this.musicGain);
+    pad.start(); pad2.start();
+    this.musicNodes.push(pad, pad2, lp, padG);
+
+    // Bass blips
+    let beat = 0;
+    const bass = [82.4, 82.4, 110.0, 98.0, 73.4, 73.4, 87.3, 65.4];
+    this._bassInt = setInterval(()=>{
+      if(!this.musicOn) return;
+      const o = ctx.createOscillator(); o.type='square';
+      o.frequency.value = bass[beat%bass.length];
+      const g = ctx.createGain(); g.gain.value = 0;
+      g.gain.linearRampToValueAtTime(0.07, ctx.currentTime + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+      o.connect(g); g.connect(this.musicGain);
+      o.start(); o.stop(ctx.currentTime + 0.2);
+      beat++;
+    }, 360);
+
+    // Arpeggio (C major-ish)
+    const notes = [261.6, 329.6, 392.0, 523.2, 392.0, 329.6, 392.0, 523.2];
+    let i=0;
+    this._arpInt = setInterval(()=>{
+      if(!this.musicOn) return;
+      const o = ctx.createOscillator(); o.type='square';
+      o.frequency.value = notes[i%notes.length] * (Math.random()>0.85? 2 : 1);
+      const g = ctx.createGain(); g.gain.value = 0;
+      g.gain.linearRampToValueAtTime(0.05, ctx.currentTime + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+      o.connect(g); g.connect(this.musicGain);
+      o.start(); o.stop(ctx.currentTime + 0.28);
+      i++;
+    }, 180);
+  }
+  stopMusic(){
+    if(!this.musicOn) return;
+    this.musicOn = false;
+    clearInterval(this._arpInt); clearInterval(this._bassInt);
+    if(!this.ctx) return;
+    this.musicGain.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.musicGain.gain.linearRampToValueAtTime(0.0, this.ctx.currentTime + 0.6);
+    setTimeout(()=>{
+      this.musicNodes.forEach(n=>{ try{ n.stop && n.stop(); n.disconnect && n.disconnect(); }catch(e){} });
+      this.musicNodes = [];
+    }, 800);
+  }
+  setSfx(on){ this.sfxOn = on; }
+  toggleMusic(){
+    this.unlock();
+    if(this.musicOn) this.stopMusic(); else this.startMusic();
+    return this.musicOn;
+  }
+}
+
+/* ========================================================
+   SimplePhysics
+   ======================================================== */
+class SimplePhysics{
+  constructor(opts={}){
+    this.gravity = opts.gravity ?? -2.4;
+    this.groundY = opts.groundY ?? 0;
+    this.bounds  = opts.bounds  ?? 1.8;
+  }
+  step(body, dt, props=[]){
+    body.vy += this.gravity * dt;
+    body.x += body.vx * dt;
+    body.y += body.vy * dt;
+    body.z += body.vz * dt;
+    if(body.y <= this.groundY + body.r){
+      body.y = this.groundY + body.r;
+      if(body.vy < 0) body.vy = -body.vy * 0.4;
+      body.vx *= 0.86; body.vz *= 0.86;
+      if(Math.abs(body.vy) < 0.4) body.vy = 0;
+    }
+    const b = this.bounds;
+    if(Math.abs(body.x) > b){ body.x = Math.sign(body.x)*b; body.vx = -body.vx*0.5; }
+    if(Math.abs(body.z) > b){ body.z = Math.sign(body.z)*b; body.vz = -body.vz*0.5; }
+    for(const p of props){
+      const dx = body.x - p.x, dz = body.z - p.z;
+      const d = Math.hypot(dx,dz);
+      const minD = (p.r||0.15) + body.r;
+      if(d < minD && body.y < (p.h||0.3)){
+        const nx = dx/(d||1), nz = dz/(d||1);
+        body.x = p.x + nx*minD; body.z = p.z + nz*minD;
+        body.vx = -body.vx*0.4; body.vz = -body.vz*0.4;
+      }
+    }
+  }
+}
+
+/* ========================================================
+   CreatureSprite
+   ======================================================== */
+class CreatureSprite{
+  constructor(scene, pokemon, opts){
+    this.scene = scene;
+    this.pokemon = pokemon;
+    this.opts = opts;
+    this.types = pokemon.types?.map(t=>t.type.name) || ['normal'];
+    this.height = pokemon.height ? pokemon.height/10 : 0.5;
+    this.weight = pokemon.weight ? pokemon.weight/10 : 5;
+    this.group = new THREE.Group();
+    this.body = { x:0, y:0.001, z:0, vx:0, vy:0, vz:0, r:0.1 };
+    this.spawnTime = performance.now();
+    this.state = 'idle';
+    this._build();
+  }
+  _build(){
+    const tex = this.opts.texture;
+    if(tex){
+      const aspect = (tex.image?.width) ? (tex.image.width / tex.image.height) : 1;
+      const targetH = THREE.MathUtils.clamp(this.height * 1.4, 0.32, 1.4);
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent:true, alphaTest:0.05, depthWrite:false });
+      this.sprite = new THREE.Sprite(mat);
+      this.sprite.scale.set(targetH*aspect, targetH, 1);
+      this.sprite.position.y = targetH*0.5;
+      this.group.add(this.sprite);
+      this._spriteH = targetH;
+    }
+    // shadow
+    const shGeo = new THREE.CircleGeometry(0.20, 32);
+    const shMat = new THREE.MeshBasicMaterial({ color:0x1B2154, transparent:true, opacity:0.42 });
+    this.shadow = new THREE.Mesh(shGeo, shMat);
+    this.shadow.rotation.x = -Math.PI/2;
+    this.shadow.position.y = 0.003;
+    this.group.add(this.shadow);
+    // aura ring (subtle, type color)
+    const auraC = this._typeColor();
+    const ringGeo = new THREE.RingGeometry(0.22, 0.28, 48);
+    const ringMat = new THREE.MeshBasicMaterial({ color:auraC, transparent:true, opacity:0.55, side:THREE.DoubleSide });
+    this.aura = new THREE.Mesh(ringGeo, ringMat);
+    this.aura.rotation.x = -Math.PI/2;
+    this.aura.position.y = 0.005;
+    this.group.add(this.aura);
+    // particles by type
+    this.particles = this._makeParticles(auraC);
+    this.group.add(this.particles);
+
+    this.scene.add(this.group);
+  }
+  _typeColor(){
+    const map = {
+      fire:0xee8130, water:0x6390f0, electric:0xf7d02c, grass:0x7ac74c, ice:0x96d9d6,
+      fighting:0xc22e28, poison:0xa33ea1, ground:0xe2bf65, flying:0xa98ff3,
+      psychic:0xf95587, bug:0xa6b91a, rock:0xb6a136, ghost:0x735797, dragon:0x6f35fc,
+      dark:0x705746, steel:0xb7b7ce, fairy:0xd685ad, normal:0xa8a77a
+    };
+    return map[this.types[0]] || 0x9aaedd;
+  }
+  _makeParticles(color){
+    const N = 22;
+    const g = new THREE.BufferGeometry();
+    const pos = new Float32Array(N*3);
+    for(let i=0;i<N;i++){
+      const a = Math.random()*Math.PI*2;
+      const r = 0.25 + Math.random()*0.25;
+      pos[i*3]   = Math.cos(a)*r;
+      pos[i*3+1] = Math.random()*0.5;
+      pos[i*3+2] = Math.sin(a)*r;
+    }
+    g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    const m = new THREE.PointsMaterial({ color, size:0.04, transparent:true, opacity:0.85, depthWrite:false, blending:THREE.AdditiveBlending });
+    return new THREE.Points(g, m);
+  }
+  jump(){ this.body.vy = 1.6; this.body.vx = (Math.random()-0.5)*0.5; this.body.vz = (Math.random()-0.5)*0.5; this.state='jump'; }
+  hitFlash(){ this.state='hit'; this._flashEnd = performance.now()+220; }
+  shake(){ this.state='shake'; this._shakeEnd = performance.now()+400; }
+  flee(){ this.state='flee'; this.body.vy = 2.4; this.body.vx = (Math.random()-0.5)*3; this.body.vz = (Math.random()-0.5)*3; }
+  setPosition(x,y,z){ this.body.x=x; this.body.y=y; this.body.z=z; this.group.position.set(x,y,z); }
+  update(dt, props, physics){
+    physics.step(this.body, dt, props||[]);
+    const t = (performance.now() - this.spawnTime)*0.001;
+    const bob = (this.state==='idle') ? Math.sin(t*3.2)*0.025 : 0;
+    this.group.position.set(this.body.x, this.body.y + bob, this.body.z);
+
+    this.shadow.position.set(0, 0.003 - this.body.y, 0);
+    const shScale = Math.max(0.3, 1 - this.body.y*0.6);
+    this.shadow.scale.set(shScale, shScale, 1);
+
+    if(this.aura){
+      this.aura.position.set(0, 0.005 - this.body.y, 0);
+      this.aura.scale.setScalar(1 + Math.sin(t*2.5)*0.08);
+      this.aura.material.opacity = 0.35 + Math.sin(t*3)*0.18;
+    }
+    if(this.state==='shake' && this.sprite){
+      this.sprite.position.x = (Math.random()-0.5)*0.06;
+      if(performance.now()>this._shakeEnd){ this.state='idle'; this.sprite.position.x=0; }
+    }
+    if(this.state==='hit' && this.sprite){
+      this.sprite.material.color.setHex(0xff5e7a);
+      if(performance.now()>this._flashEnd){ this.sprite.material.color.setHex(0xffffff); this.state='idle'; }
+    }
+    this.particles.rotation.y += dt*0.6;
+  }
+  removeFromScene(){ this.scene.remove(this.group); this.group.traverse(o=>{ o.geometry?.dispose?.(); o.material?.dispose?.(); }); }
+}
+
+/* ========================================================
+   CaptureSystem
+   ======================================================== */
+class CaptureSystem{
+  constructor(){
+    this.lsKey = 'pae:caught:v2';
+    this.list = this._load();
+  }
+  _load(){ try{ return JSON.parse(localStorage.getItem(this.lsKey)||'[]'); }catch{ return []; } }
+  _save(){ try{ localStorage.setItem(this.lsKey, JSON.stringify(this.list)); }catch{} }
+  calculateChance(pokemon, reticleDist=0.1){
+    const stats = pokemon.stats || [];
+    const hp = stats.find(s=>s.stat.name==='hp')?.base_stat || 60;
+    const w  = (pokemon.weight||50);
+    const rare = (pokemon.base_experience||80);
+    let p = 0.85 - (hp*0.0024) - (w*0.0008) - (rare*0.0014) - Math.min(reticleDist,1)*0.2;
+    return Math.max(0.08, Math.min(0.92, p));
+  }
+  add(pokemon, meta){
+    this.list.unshift({
+      id: pokemon.id, name: pokemon.name,
+      sprite: meta.sprite,
+      types: pokemon.types?.map(t=>t.type.name) || [],
+      gen: meta.gen, region: meta.region,
+      date: Date.now(), shiny: !!meta.shiny
+    });
+    if(this.list.length > 48) this.list.length = 48;
+    this._save();
+  }
+  clear(){ this.list = []; this._save(); }
+}
+
+/* ========================================================
+   HeroScene — grass islands floating over a sky
+   ======================================================== */
+class HeroScene{
+  constructor(canvas){
+    this.canvas = canvas;
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    this.camera.position.set(0, 1.4, 5);
+
+    this._mouse = {x:0,y:0};
+    this._build();
+    this._resize();
+    new ResizeObserver(()=>this._resize()).observe(canvas);
+    this.renderer.setAnimationLoop((t)=>this._tick(t));
+    canvas.addEventListener('mousemove', e=>{
+      const r = canvas.getBoundingClientRect();
+      this._mouse.x = ((e.clientX-r.left)/r.width)*2 -1;
+      this._mouse.y = ((e.clientY-r.top)/r.height)*2 -1;
+    });
+  }
+  _build(){
+    this.scene.add(new THREE.AmbientLight(0xfffbf0, 0.85));
+    const dl = new THREE.DirectionalLight(0xfff7d0, 0.8); dl.position.set(3,5,2); this.scene.add(dl);
+
+    // islands (grass tops + soil bottoms)
+    this.islands = [];
+    const regs = [
+      { name:'KANTO',  x:-1.6, y:0.5, z:-0.4, c:0x6390F0 },
+      { name:'JOHTO',  x:1.6,  y:0.9, z:-0.8, c:0xEE8130 },
+      { name:'HOENN',  x:0.0,  y:1.5, z:-1.8, c:0x7AC74C },
+      { name:'SINNOH', x:-2.4, y:1.6, z:-2.4, c:0x96D9D6 },
+      { name:'UNOVA',  x:2.5,  y:0.1, z:-1.6, c:0xA33EA1 },
+    ];
+    regs.forEach(r=>{
+      const island = new THREE.Group();
+      // soil base
+      const baseGeo = new THREE.CylinderGeometry(0.45, 0.18, 0.32, 7);
+      const baseMat = new THREE.MeshLambertMaterial({ color: 0xB07644 });
+      const base = new THREE.Mesh(baseGeo, baseMat); base.position.y = -0.16; island.add(base);
+      // grass top
+      const topGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.1, 16);
+      const topMat = new THREE.MeshLambertMaterial({ color: 0x6FB04D });
+      const top = new THREE.Mesh(topGeo, topMat); top.position.y = 0.05; island.add(top);
+      // little tree
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.04, 0.05, 0.18, 7),
+        new THREE.MeshLambertMaterial({ color: 0x7A5230 })
+      );
+      trunk.position.set(0.2, 0.18, 0); island.add(trunk);
+      const leaves = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(0.18, 0),
+        new THREE.MeshLambertMaterial({ color: 0x4F9E3D })
+      );
+      leaves.position.set(0.2, 0.36, 0); island.add(leaves);
+      // signpost
+      const sign = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.06, 0.02),
+        new THREE.MeshBasicMaterial({ color: r.c })
+      );
+      sign.position.set(-0.18, 0.22, 0.1); island.add(sign);
+      const pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.008, 0.008, 0.2),
+        new THREE.MeshLambertMaterial({ color: 0x4A3622 })
+      );
+      pole.position.set(-0.18, 0.15, 0.1); island.add(pole);
+
+      island.position.set(r.x, r.y, r.z);
+      island.userData = r;
+      this.scene.add(island);
+      this.islands.push(island);
+    });
+
+    // golden sparkles
+    const N = 80;
+    const partGeo = new THREE.BufferGeometry();
+    const pos = new Float32Array(N*3);
+    for(let i=0;i<N;i++){
+      pos[i*3]   = (Math.random()-0.5)*6;
+      pos[i*3+1] = Math.random()*4 - 0.5;
+      pos[i*3+2] = (Math.random()-0.5)*4 - 1;
+    }
+    partGeo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    this.particles = new THREE.Points(partGeo, new THREE.PointsMaterial({ size:0.06, color:0xFFE36B, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false }));
+    this.scene.add(this.particles);
+
+    // center crystal cluster (like a Pokémon center thing)
+    const cluster = new THREE.Group();
+    for(let i=0;i<4;i++){
+      const g = new THREE.IcosahedronGeometry(0.16 + Math.random()*0.08, 0);
+      const m = new THREE.MeshStandardMaterial({
+        color: [0xDC3545, 0xF2B939, 0x2D5BD1][i%3],
+        emissive: [0xDC3545, 0xF2B939, 0x2D5BD1][i%3],
+        emissiveIntensity: 0.25,
+        metalness: 0.4, roughness: 0.3, transparent:true, opacity:0.92
+      });
+      const c = new THREE.Mesh(g,m);
+      c.position.set((Math.random()-0.5)*0.6, 0.5 + Math.random()*0.2, (Math.random()-0.5)*0.3);
+      cluster.add(c);
+    }
+    this.cluster = cluster;
+    this.scene.add(cluster);
+  }
+  _resize(){
+    const r = this.canvas.getBoundingClientRect();
+    this.renderer.setSize(r.width, r.height, false);
+    this.camera.aspect = r.width / r.height;
+    this.camera.updateProjectionMatrix();
+  }
+  _tick(t){
+    const s = t*0.001;
+    this.particles.rotation.y = s*0.05;
+    this.cluster.rotation.y = s*0.4;
+    this.cluster.children.forEach((c,i)=>{ c.rotation.x = s*(0.3+i*0.1); c.position.y = 0.5 + Math.sin(s*1.2 + i)*0.06; });
+    this.islands.forEach((isl,i)=>{
+      isl.position.y = isl.userData.y + Math.sin(s*0.8 + i)*0.1;
+      isl.rotation.y = s*0.2 + i;
+    });
+    const tx = this._mouse.x*0.4, ty = -this._mouse.y*0.3;
+    this.camera.position.x += (tx - this.camera.position.x)*0.04;
+    this.camera.position.y += (1.4 + ty - this.camera.position.y)*0.04;
+    this.camera.lookAt(0, 0.6, -1);
+    this.renderer.render(this.scene, this.camera);
+  }
+}
+
+/* ========================================================
+   StageScene — battle scene + AR
+   ======================================================== */
+class StageScene{
+  constructor(canvas){
+    this.canvas = canvas;
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    this.renderer.xr.enabled = true;
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(48, 1, 0.05, 60);
+    this.camera.position.set(0, 1.0, 3.2);
+    this.camera.lookAt(0, 0.4, 0);
+
+    this.physics = new SimplePhysics({ groundY:0, bounds:2 });
+    this.creature = null;
+    this.props = [];
+    this.showColliders = false;
+    this.showMesh = false; // off by default in JRPG mode
+    this.occlusion = false;
+    this.mode = 'fallback';
+    this.reticle = null;
+    this.hitTestSource = null;
+    this.hitTestSourceRequested = false;
+
+    this._build();
+    this._resize();
+    new ResizeObserver(()=>this._resize()).observe(canvas);
+    this.clock = new THREE.Clock();
+    this.renderer.setAnimationLoop((t,frame)=>this._tick(t,frame));
+
+    this.controls = new OrbitControls(this.camera, canvas);
+    this.controls.target.set(0, 0.4, 0);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.08;
+    this.controls.minDistance = 1.8; this.controls.maxDistance = 5;
+    this.controls.maxPolarAngle = Math.PI*0.49;
+    this.controls.minPolarAngle = Math.PI*0.15;
+    this.controls.enablePan = false;
+    this.controls.update();
+
+    canvas.addEventListener('click', (e)=> this._onCanvasClick(e));
+  }
+  _build(){
+    this.scene.add(new THREE.AmbientLight(0xfffbf0, 0.95));
+    const dl = new THREE.DirectionalLight(0xfff7d0, 0.7); dl.position.set(2,5,2); this.scene.add(dl);
+
+    this.world = new THREE.Group();
+    this.scene.add(this.world);
+
+    // Optional: render a faint mesh grid only when toggled (default off)
+    const gridGeo = new THREE.PlaneGeometry(4, 4);
+    const gridMat = new THREE.ShaderMaterial({
+      uniforms:{ uTime:{value:0}, uOpacity:{value:0.0} },
+      transparent:true,
+      vertexShader:`varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+      fragmentShader:`
+        varying vec2 vUv; uniform float uTime; uniform float uOpacity;
+        void main(){
+          vec2 g = abs(fract(vUv*16.0)-0.5);
+          float l = smoothstep(0.46,0.5, max(g.x,g.y));
+          float d = distance(vUv, vec2(0.5));
+          float ring = smoothstep(0.02, 0.0, abs(d - mod(uTime*0.15, 0.5)));
+          float fade = smoothstep(0.7, 0.0, d);
+          vec3 col = vec3(0.18, 0.36, 0.82);
+          gl_FragColor = vec4(col, (l*0.55 + ring*0.4)*fade*uOpacity);
+        }`
+    });
+    this.gridMesh = new THREE.Mesh(gridGeo, gridMat);
+    this.gridMesh.rotation.x = -Math.PI/2;
+    this.gridMesh.position.y = 0.003;
+    this.world.add(this.gridMesh);
+
+    // Battle "platform" disc rendered as a thin ring
+    const platGeo = new THREE.RingGeometry(0.55, 0.85, 64);
+    const platMat = new THREE.MeshBasicMaterial({ color:0x8E6E45, transparent:true, opacity:0.32, side:THREE.DoubleSide });
+    const plat = new THREE.Mesh(platGeo, platMat);
+    plat.rotation.x = -Math.PI/2;
+    plat.position.y = 0.004;
+    this.world.add(plat);
+
+    // Invisible collision plane (raycast target)
+    const grGeo = new THREE.PlaneGeometry(10, 10);
+    const grMat = new THREE.MeshBasicMaterial({ transparent:true, opacity:0.0 });
+    this.ground = new THREE.Mesh(grGeo, grMat);
+    this.ground.rotation.x = -Math.PI/2;
+    this.world.add(this.ground);
+
+    this._buildProps();
+
+    // reticle for AR
+    const retGeo = new THREE.RingGeometry(0.12, 0.16, 32).rotateX(-Math.PI/2);
+    const retMat = new THREE.MeshBasicMaterial({ color:0xDC3545, transparent:true, opacity:0.95, side:THREE.DoubleSide });
+    this.reticle = new THREE.Mesh(retGeo, retMat);
+    this.reticle.matrixAutoUpdate = false;
+    this.reticle.visible = false;
+    this.scene.add(this.reticle);
+    const retInner = new THREE.Mesh(
+      new THREE.RingGeometry(0.04, 0.06, 32).rotateX(-Math.PI/2),
+      new THREE.MeshBasicMaterial({ color:0xF2B939, transparent:true, opacity:0.95, side:THREE.DoubleSide })
+    );
+    this.reticle.add(retInner);
+    this.reticleInner = retInner;
+
+    this.controller = this.renderer.xr.getController(0);
+    this.controller.addEventListener('select', ()=>this._onARSelect());
+    this.scene.add(this.controller);
+  }
+  _buildProps(){
+    const propSpec = [
+      ...Array.from({length:6}, ()=> ({ type:'grass', r:0.08, h:0.18 })),
+      ...Array.from({length:3}, ()=> ({ type:'rock',  r:0.16, h:0.22 })),
+      ...Array.from({length:2}, ()=> ({ type:'bush',  r:0.18, h:0.28 })),
+      { type:'sign',   r:0.1, h:0.4 },
+    ];
+    this.propGroup = new THREE.Group();
+    this.world.add(this.propGroup);
+    this.props = [];
+    for(const p of propSpec){
+      const ang = Math.random()*Math.PI*2;
+      const dist = 1.0 + Math.random()*0.7;
+      const x = Math.cos(ang)*dist;
+      const z = Math.sin(ang)*dist;
+      let mesh;
+      switch(p.type){
+        case 'grass':{
+          const g = new THREE.Group();
+          for(let i=0;i<4;i++){
+            const blade = new THREE.Mesh(
+              new THREE.PlaneGeometry(0.05, 0.18),
+              new THREE.MeshBasicMaterial({ color:0x6FB04D, side:THREE.DoubleSide })
+            );
+            blade.position.y = 0.09;
+            blade.rotation.y = i*Math.PI/2;
+            g.add(blade);
+          }
+          mesh = g; break;
+        }
+        case 'rock':{
+          mesh = new THREE.Mesh(
+            new THREE.IcosahedronGeometry(0.13 + Math.random()*0.06, 0),
+            new THREE.MeshLambertMaterial({ color:0x7C8090 })
+          );
+          mesh.position.y = 0.1; break;
+        }
+        case 'bush':{
+          mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.2, 12, 12),
+            new THREE.MeshLambertMaterial({ color:0x4F9E3D })
+          );
+          mesh.position.y = 0.18; break;
+        }
+        case 'sign':{
+          const g = new THREE.Group();
+          const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,0.4), new THREE.MeshLambertMaterial({color:0x7A5230}));
+          pole.position.y = 0.2; g.add(pole);
+          const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.25,0.16), new THREE.MeshBasicMaterial({color:0xDC3545, side:THREE.DoubleSide}));
+          plate.position.set(0, 0.34, 0); g.add(plate);
+          mesh = g; break;
+        }
+      }
+      mesh.position.x = x; mesh.position.z = z;
+      this.propGroup.add(mesh);
+      const colViz = new THREE.Mesh(
+        new THREE.CylinderGeometry(p.r, p.r, p.h, 12),
+        new THREE.MeshBasicMaterial({ color:0xDC3545, wireframe:true, transparent:true, opacity:0.6 })
+      );
+      colViz.position.set(x, p.h/2, z);
+      colViz.visible = false;
+      this.propGroup.add(colViz);
+      this.props.push({ x, z, r:p.r, h:p.h, type:p.type, mesh, colViz });
+    }
+  }
+  _resize(){
+    const r = this.canvas.getBoundingClientRect();
+    this.renderer.setSize(r.width, r.height, false);
+    this.camera.aspect = r.width / r.height;
+    this.camera.updateProjectionMatrix();
+  }
+  toggleColliders(){ this.showColliders = !this.showColliders; this.props.forEach(p=>p.colViz.visible = this.showColliders); return this.showColliders; }
+  toggleMesh(){ this.showMesh = !this.showMesh; this.gridMesh.material.uniforms.uOpacity.value = this.showMesh? 0.7 : 0; return this.showMesh; }
+  toggleOcclusion(){
+    this.occlusion = !this.occlusion;
+    if(this.creature?.sprite){
+      this.creature.sprite.material.depthTest = this.occlusion;
+      this.creature.sprite.material.needsUpdate = true;
+    }
+    return this.occlusion;
+  }
+  setMode(m){
+    this.mode = m;
+    this.controls.enabled = (m==='fallback');
+    this.reticle.visible  = (m==='ar');
+  }
+  setCreature(pokemon, texture, opts={}){
+    if(this.creature){ this.creature.removeFromScene(); this.creature = null; }
+    this.creature = new CreatureSprite(this.world, pokemon, { texture, ...opts });
+    this.creature.setPosition(0, 0.3, 0);
+    this.creature.body.vy = 1.2;
+    return this.creature;
+  }
+  _onCanvasClick(e){
+    if(this.mode==='ar') return;
+    if(!this.creature) return;
+    const r = this.canvas.getBoundingClientRect();
+    const mx = ((e.clientX-r.left)/r.width)*2 -1;
+    const my = -((e.clientY-r.top)/r.height)*2 +1;
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2(mx,my), this.camera);
+    const hits = ray.intersectObject(this.ground);
+    if(hits.length){
+      const p = hits[0].point;
+      this.creature.body.vy = 1.6;
+      this.creature.body.x = p.x; this.creature.body.z = p.z;
+    }
+  }
+  _onARSelect(){
+    if(!this.reticle.visible) return;
+    if(this.creature){
+      const m = new THREE.Matrix4().fromArray(this.reticle.matrix.elements);
+      const pos = new THREE.Vector3().setFromMatrixPosition(m);
+      this.creature.body.x = pos.x; this.creature.body.y = pos.y + 0.05; this.creature.body.z = pos.z;
+      this.creature.body.vy = 1.2;
+    }
+  }
+  async startAR(onState){
+    if(!navigator.xr){ onState('unavailable'); return false; }
+    try{
+      const supported = await navigator.xr.isSessionSupported('immersive-ar');
+      if(!supported){ onState('unavailable'); return false; }
+      const sess = await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures:['hit-test'],
+        optionalFeatures:['dom-overlay','anchors','light-estimation'],
+        domOverlay:{ root: document.body }
+      });
+      await this.renderer.xr.setSession(sess);
+      this.setMode('ar');
+      onState('searching');
+      sess.addEventListener('end', ()=>{
+        this.setMode('fallback');
+        onState('ended');
+        this.hitTestSource = null;
+        this.hitTestSourceRequested = false;
+      });
+      return true;
+    }catch(err){
+      console.warn('[xr]', err);
+      onState('error');
+      return false;
+    }
+  }
+  _tick(t, frame){
+    const dt = Math.min(0.05, this.clock.getDelta());
+    if(this.gridMesh) this.gridMesh.material.uniforms.uTime.value = t*0.001;
+    this.props.forEach(p=>{
+      if(p.type==='sign') p.mesh.rotation.y += dt*0.4;
+      if(p.type==='grass'){ p.mesh.rotation.y = Math.sin(t*0.001 + p.x)*0.2; }
+    });
+    if(this.reticleInner) this.reticleInner.rotation.z = t*0.002;
+
+    if(this.renderer.xr.isPresenting && frame){
+      const refSpace = this.renderer.xr.getReferenceSpace();
+      const session  = this.renderer.xr.getSession();
+      if(!this.hitTestSourceRequested){
+        this.hitTestSourceRequested = true;
+        session.requestReferenceSpace('viewer').then(viewerSpace=>{
+          session.requestHitTestSource({ space:viewerSpace }).then(src=>{ this.hitTestSource = src; });
+        });
+      }
+      if(this.hitTestSource){
+        const hits = frame.getHitTestResults(this.hitTestSource);
+        if(hits.length){
+          const pose = hits[0].getPose(refSpace);
+          this.reticle.visible = true;
+          this.reticle.matrix.fromArray(pose.transform.matrix);
+        }else{
+          this.reticle.visible = false;
+        }
+      }
+    }
+    if(this.creature){
+      this.creature.update(dt, this.props, this.physics);
+      if(this.creature.state==='idle' && Math.random()<0.004 && this.creature.body.y < 0.15){
+        this.creature.jump();
+        window.__audio?.playSfx('jump');
+      }
+    }
+    if(this.controls) this.controls.update();
+    this.renderer.render(this.scene, this.camera);
+  }
+}
+
+/* ========================================================
+   App glue
+   ======================================================== */
+const api    = new APIService();
+const audio  = new AudioManager();
+const captor = new CaptureSystem();
+window.__audio = audio;
+
+const state = {
+  generation: null,
+  region: null,
+  type: null,
+  spriteStyle: 'showdown',
+  shiny: false,
+  cryOnSpawn: true,
+  currentPokemon: null,
+  currentMeta: null,
+};
+
+const $  = (id)=>document.getElementById(id);
+const setState = (label, cls='warn')=>{
+  $('state-label').textContent = label;
+  const pill = $('status-pill');
+  pill.classList.remove('warn','ok');
+  if(cls) pill.classList.add(cls);
+};
+const setDialog = (msg)=>{ $('dialog-msg').innerHTML = msg; };
+const showToast = (msg, cls='')=>{
+  const t = $('toast');
+  t.className = 'toast show ' + cls;
+  t.textContent = msg;
+  clearTimeout(t._tid);
+  t._tid = setTimeout(()=>{ t.classList.remove('show'); }, 1700);
+};
+const updateTrainer = ()=>{
+  $('t-caught').textContent = captor.list.length.toString().padStart(3,'0');
+  $('t-cache').textContent  = api.mem.size;
+};
+const ID = Math.floor(Math.random()*99999).toString().padStart(5,'0');
+$('trainer-id').textContent = `ID ${ID}`;
+
+// Stopwatch
+const t0 = Date.now();
+setInterval(()=>{
+  const s = Math.floor((Date.now()-t0)/1000);
+  const m = String(Math.floor(s/60)).padStart(2,'0');
+  const sec = String(s%60).padStart(2,'0');
+  $('t-time').textContent = `${m}:${sec}`;
+}, 1000);
+
+// Scenes
+const hero  = new HeroScene($('hero-canvas'));
+const stage = new StageScene($('ar-canvas'));
+
+/* ---- WebXR check ---- */
+(async ()=>{
+  setState('CHECKING WEBXR…','warn');
+  if(navigator.xr){
+    try{
+      const ok = await navigator.xr.isSessionSupported('immersive-ar');
+      if(ok){
+        setState('WEBXR READY · TAP AR','ok');
+        setDialog('Welcome! <b>WebXR</b> is available. Hit <b>AR MODE</b> to anchor wild encounters on your scanned plane, or roll a <b>NEXT ENCOUNTER</b> here in the demo.');
+      }else{
+        setState('FALLBACK 3D · NO AR','warn');
+        setDialog('Your browser doesn\'t support immersive-AR — the 3D battle stage is active. Tap <b>NEXT ENCOUNTER</b> to roll a wild creature.');
+      }
+    }catch(e){
+      setState('FALLBACK 3D','warn');
+      setDialog('Couldn\'t reach the WebXR runtime — running the 3D fallback. Tap <b>NEXT ENCOUNTER</b> to roll a wild creature.');
+    }
+  }else{
+    setState('FALLBACK 3D','warn');
+    setDialog('WebXR isn\'t available in this browser. The pixel-art 3D arena is active — tap <b>NEXT ENCOUNTER</b> to roll a creature.');
+  }
+})();
+
+/* ---- Generations / Regions / Types load ---- */
+async function loadFilters(){
+  const [gens, regs] = await Promise.all([api.getAllGenerations(), api.getAllRegions()]);
+  const types = ['normal','fire','water','electric','grass','ice','fighting','poison','ground',
+                 'flying','psychic','bug','rock','ghost','dragon','dark','steel','fairy'];
+
+  // Generations (as gym badges)
+  const gEl = $('gens'); gEl.innerHTML = '';
+  const genList = gens?.results || [];
+  $('gen-sub').textContent = `${genList.length} GENERATIONS · LIVE FROM POKÉAPI`;
+  const romanNames = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+  genList.forEach((g,i)=>{
+    const id = g.url.split('/').filter(Boolean).pop();
+    const num = parseInt(id);
+    const b = document.createElement('div');
+    b.className = 'gen-badge';
+    b.dataset.gen = id;
+    const romanIdx = num-1;
+    b.innerHTML = `<div class="num">${romanNames[romanIdx]||num}</div><div class="nm">GEN ${num}</div>`;
+    b.addEventListener('click', ()=>{
+      audio.playSfx('select');
+      gEl.querySelectorAll('.gen-badge').forEach(c=>c.classList.remove('active'));
+      if(state.generation == id){ state.generation = null; $('t-gen').textContent = '—'; }
+      else{ state.generation = id; b.classList.add('active'); $('t-gen').textContent = romanNames[romanIdx]||num; }
+    });
+    gEl.appendChild(b);
+  });
+
+  // Town map — region pins
+  const map = $('map-area');
+  map.innerHTML = '';
+  const regList = regs?.results || [];
+  $('map-count').textContent = `${regList.length} REGIONS`;
+  $('hero-region-tag').textContent = regList.map(r=>r.name.toUpperCase()).slice(0,5).join(' · ') + (regList.length>5?' · …':'');
+  // pin positions scattered, deterministic by index
+  const pinSpots = [
+    {x:18,y:62},{x:38,y:30},{x:55,y:55},{x:72,y:28},{x:80,y:65},
+    {x:30,y:78},{x:62,y:80},{x:46,y:18},{x:14,y:36},{x:88,y:44},
+    {x:24,y:50},{x:65,y:42},
+  ];
+  regList.forEach((r,i)=>{
+    const id = r.url.split('/').filter(Boolean).pop();
+    const spot = pinSpots[i % pinSpots.length];
+    const pin = document.createElement('div');
+    pin.className = 'region-pin';
+    pin.style.left = spot.x+'%'; pin.style.top = spot.y+'%';
+    pin.dataset.reg = id;
+    pin.innerHTML = `<span class="dot"></span><span class="nm">${r.name.toUpperCase()}</span>`;
+    pin.addEventListener('click', ()=>{
+      audio.playSfx('select');
+      document.querySelectorAll('.region-pin').forEach(p=>p.classList.remove('active'));
+      if(state.region == id){ state.region = null; $('map-selected').textContent='NO REGION SELECTED'; $('t-region').textContent='—'; }
+      else{
+        state.region = id; pin.classList.add('active');
+        $('map-selected').textContent = '◆ ' + r.name.toUpperCase();
+        $('t-region').textContent = r.name.toUpperCase();
+      }
+    });
+    map.appendChild(pin);
+  });
+
+  // Types
+  const tEl = $('types'); tEl.innerHTML = '';
+  types.forEach(t=>{
+    const chip = document.createElement('span');
+    chip.className = 'type-chip t-'+t;
+    chip.dataset.type = t;
+    chip.textContent = t;
+    chip.addEventListener('click', ()=>{
+      audio.playSfx('click');
+      tEl.querySelectorAll('.type-chip').forEach(c=>c.classList.remove('active'));
+      if(state.type == t){ state.type = null; }
+      else{ state.type = t; chip.classList.add('active'); }
+    });
+    tEl.appendChild(chip);
+  });
+
+  updateTrainer();
+}
+loadFilters();
+
+/* ---- Toggles & header controls ---- */
+$('tog-shiny').addEventListener('click', e=>{
+  e.currentTarget.classList.toggle('on');
+  state.shiny = e.currentTarget.classList.contains('on');
+  audio.playSfx('click');
+});
+$('tog-cry').addEventListener('click', e=>{
+  e.currentTarget.classList.toggle('on');
+  state.cryOnSpawn = e.currentTarget.classList.contains('on');
+  audio.playSfx('click');
+});
+$('sprite-style').addEventListener('change', e=>{ state.spriteStyle = e.target.value; });
+
+$('btn-music').addEventListener('click', ()=>{
+  const on = audio.toggleMusic();
+  $('btn-music').classList.toggle('on', on);
+});
+$('btn-sfx').addEventListener('click', ()=>{
+  audio.setSfx(!audio.sfxOn);
+  $('btn-sfx').classList.toggle('on', audio.sfxOn);
+});
+
+$('tog-mesh').addEventListener('click', e=>{ const on = stage.toggleMesh(); e.currentTarget.classList.toggle('on', on); audio.playSfx('click'); });
+$('tog-coll').addEventListener('click', e=>{ const on = stage.toggleColliders(); e.currentTarget.classList.toggle('on', on); audio.playSfx('click'); });
+$('tog-occl').addEventListener('click', e=>{ const on = stage.toggleOcclusion(); e.currentTarget.classList.toggle('on', on); audio.playSfx('click'); });
+
+/* ---- Hero CTAs ---- */
+$('cta-ar').addEventListener('click', ()=>{
+  audio.unlock(); audio.playSfx('scan');
+  document.getElementById('battle').scrollIntoView({ behavior:'smooth', block:'start' });
+  setTimeout(()=>$('btn-ar').click(), 400);
+});
+$('cta-demo').addEventListener('click', ()=>{
+  audio.unlock();
+  document.getElementById('battle').scrollIntoView({ behavior:'smooth', block:'start' });
+});
+
+/* ---- AR button (inside battle dialog) ---- */
+$('btn-ar').addEventListener('click', async ()=>{
+  audio.unlock(); audio.playSfx('scan');
+  setDialog('Requesting WebXR session…');
+  await stage.startAR(s=>{
+    if(s==='unavailable'){
+      setState('AR UNAVAILABLE','warn');
+      setDialog('WebXR AR isn\'t available on this device. The 3D battle stage is already active. Roll a <b>NEXT ENCOUNTER</b> to continue.');
+      showToast('AR unavailable', 'fail');
+    }
+    if(s==='searching'){
+      setState('SEARCHING SURFACE…','warn');
+      setDialog('Move your phone slowly to scan a flat surface. Once detected, the reticle will appear — tap to anchor the creature.');
+      audio.playSfx('scan');
+    }
+    if(s==='ended'){
+      setState('SESSION ENDED','warn');
+      setDialog('AR session ended. The 3D stage is active again.');
+    }
+    if(s==='error'){
+      setState('AR ERROR','warn');
+      setDialog('Something went wrong starting WebXR — falling back to the 3D battle stage.');
+    }
+  });
+});
+
+/* ---- Generate encounter ---- */
+async function generateEncounter(){
+  audio.unlock();
+  audio.playSfx('scan');
+  setState('ROLLING ENCOUNTER…','warn');
+  setDialog('<span class="spinner"></span> Searching the tall grass…');
+  $('btn-spawn').disabled = true;
+
+  const p = await api.getRandomEncounter({
+    generation: state.generation,
+    region: state.region,
+    type: state.type
+  });
+  updateTrainer();
+
+  if(!p){
+    $('btn-spawn').disabled = false;
+    setState('API ERROR','warn');
+    setDialog('Couldn\'t reach the Pokédex — please try again.');
+    showToast('Encounter failed','fail');
+    return;
+  }
+  state.currentPokemon = p;
+
+  const spriteUrl = state.shiny ? api.getShinySprite(p, state.spriteStyle) : api.getBestSprite(p, state.spriteStyle);
+  if(!spriteUrl){
+    $('btn-spawn').disabled = false;
+    showToast('No sprite','fail');
+    setDialog('No usable sprite returned. Try a different sprite style.');
+    return;
+  }
+
+  const tex = await new Promise((resolve)=>{
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin('anonymous');
+    loader.load(spriteUrl,
+      (t)=>{ t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; resolve(t); },
+      undefined,
+      ()=>resolve(null)
+    );
+  });
+
+  $('btn-spawn').disabled = false;
+  if(!tex){ showToast('Sprite failed','fail'); return; }
+
+  stage.setCreature(p, tex, { shiny: state.shiny });
+  audio.playSfx('spawn');
+  showToast(`A wild ${p.name.toUpperCase()} appeared!`, 'success');
+  setState('A WILD ' + p.name.toUpperCase() + '!','ok');
+  setDialog(`A wild <b>${p.name.toUpperCase()}</b> appeared! What will you do?`);
+
+  // HP overlay
+  const hp = p.stats?.find(s=>s.stat.name==='hp')?.base_stat || 60;
+  const lvl = 20 + Math.floor(Math.random()*40);
+  $('hp-box').classList.remove('empty');
+  $('hp-name').textContent = p.name.toUpperCase() + (state.shiny ? ' ✦' : '');
+  $('hp-lv').textContent = 'Lv.'+lvl;
+  $('hp-num').textContent = String(hp).padStart(3,'0');
+  $('hp-box').querySelector('.bar').className = 'bar';
+  $('hp-box').querySelector('.bar div').style.width = '100%';
+  $('hp-box').querySelectorAll('.num span')[1].textContent = '/'+String(hp).padStart(3,'0');
+
+  // cry
+  if(state.cryOnSpawn){
+    const cry = api.getCryUrl(p);
+    if(cry){ setTimeout(()=>audio.playCry(cry), 350); }
+  }
+
+  // species/region
+  let speciesData = null;
+  try{
+    if(p.species?.url){
+      const id = p.species.url.split('/').filter(Boolean).pop();
+      speciesData = await api.getSpecies(id);
+    }
+  }catch{}
+  const genName = speciesData?.generation?.name?.replace('generation-','').toUpperCase() || '—';
+  const region  = await (async ()=>{
+    if(!speciesData?.generation?.url) return '—';
+    const id = speciesData.generation.url.split('/').filter(Boolean).pop();
+    const g = await api.getGeneration(id);
+    return g?.main_region?.name?.toUpperCase() || '—';
+  })();
+
+  state.currentMeta = { spriteUrl, sprite: spriteUrl, gen: genName, region, shiny: state.shiny, lvl };
+  renderPokedex(p, state.currentMeta);
+  updateTrainer();
+}
+
+function renderPokedex(p, meta){
+  $('dex-empty').style.display = 'none';
+  $('dex-body').style.display = 'block';
+  $('dex-mode').textContent = 'NO.' + String(p.id).padStart(3,'0');
+
+  const types = p.types?.map(t=>t.type.name) || [];
+  const stats = p.stats || [];
+  const get = n => stats.find(s=>s.stat.name===n)?.base_stat || 0;
+  const abilities = (p.abilities||[]).map(a=>a.ability.name.replace(/-/g,' ')).slice(0,2).join(', ') || '—';
+
+  $('dex-body').innerHTML = `
+    <div class="sprite-area">
+      <div class="shadow"></div>
+      <img src="${meta.spriteUrl}" alt="${p.name}" style="image-rendering:${state.spriteStyle==='official'||state.spriteStyle==='home'?'auto':'pixelated'};" />
+    </div>
+    <div class="info">
+      <div class="name"><span>${p.name}${state.shiny?' <span style="color:var(--gold-deep)">✦</span>':''}</span><span class="num">#${String(p.id).padStart(3,'0')}</span></div>
+      <div class="where">GEN ${meta.gen} · ${meta.region} REGION</div>
+      <div class="type-chips">
+        ${types.map(t=>`<span class="type-chip t-${t}">${t}</span>`).join('')}
+      </div>
+      <div class="meta-grid">
+        <div class="cell"><div class="k">HEIGHT</div><div class="v">${(p.height/10).toFixed(1)}M</div></div>
+        <div class="cell"><div class="k">WEIGHT</div><div class="v">${(p.weight/10).toFixed(1)}KG</div></div>
+        <div class="cell"><div class="k">CRY</div><div class="v">${api.getCryUrl(p)?'YES':'NONE'}</div></div>
+      </div>
+      ${[['HP','hp'],['ATK','attack'],['DEF','defense'],['SPATK','special-attack'],['SPDEF','special-defense'],['SPD','speed']].map(([lbl,key])=>{
+        const v = get(key);
+        return `<div class="stat-row"><span class="lbl">${lbl}</span><div class="bar"><div style="width:${Math.min(100,v/200*100)}%"></div></div><span class="stat-num">${v}</span></div>`;
+      }).join('')}
+      <div class="stat-row" style="grid-template-columns: 60px 1fr;"><span class="lbl">MOVES</span><span style="text-transform:capitalize; font-family:'Pixelify Sans'; font-size: 14px;">${abilities}</span></div>
+    </div>
+  `;
+}
+
+$('btn-spawn').addEventListener('click', generateEncounter);
+
+$('btn-throw').addEventListener('click', ()=>{
+  audio.playSfx('throw');
+  if(!stage.creature){ showToast('No creature','fail'); setDialog('There is no creature to place. Roll a <b>NEXT ENCOUNTER</b> first.'); return; }
+  const ang = Math.random()*Math.PI*2;
+  const r = 0.4 + Math.random()*0.7;
+  stage.creature.body.x = Math.cos(ang)*r;
+  stage.creature.body.z = Math.sin(ang)*r;
+  stage.creature.body.vy = 1.4;
+  setDialog('Creature placed. Approach with the camera or hit <b>POKÉ BALL</b> to attempt a capture.');
+});
+
+$('btn-capture').addEventListener('click', ()=>{
+  audio.unlock();
+  if(!stage.creature || !state.currentPokemon){
+    showToast('No target','fail');
+    setDialog('There\'s nothing to capture yet — roll a <b>NEXT ENCOUNTER</b>!');
+    return;
+  }
+  audio.playSfx('throw');
+  const p = state.currentPokemon;
+  const dist = Math.hypot(stage.creature.body.x, stage.creature.body.z);
+  const chance = captor.calculateChance(p, dist);
+
+  setDialog(`You threw a Poké-Ball at <b>${p.name.toUpperCase()}</b>!`);
+  const cr = stage.creature;
+  cr.shake();
+  [0,1,2].forEach(i=>setTimeout(()=>{ cr.shake(); audio.playSfx('shake'); }, 200 + i*350));
+
+  setTimeout(()=>{
+    if(Math.random() < chance){
+      audio.playSfx('capture');
+      showToast(`CAUGHT · ${p.name.toUpperCase()}!`, 'success');
+      setDialog(`Gotcha! <b>${p.name.toUpperCase()}</b> was caught!`);
+      captor.add(p, state.currentMeta || { sprite: api.getBestSprite(p, state.spriteStyle), gen:'—', region:'—', shiny: state.shiny });
+      renderInventory(); updateTrainer();
+      cr.aura.material.color.setHex(0x5FE17C);
+      setTimeout(()=>{
+        cr.removeFromScene(); stage.creature = null;
+        setState('CAUGHT!','ok');
+        $('hp-box').classList.add('empty');
+        $('hp-name').textContent='— — —'; $('hp-lv').textContent='Lv.??'; $('hp-num').textContent='000';
+      }, 700);
+    }else{
+      audio.playSfx('escape');
+      showToast('It broke free!', 'fail');
+      setDialog(`Oh no! <b>${p.name.toUpperCase()}</b> broke free!`);
+      cr.flee();
+      setTimeout(()=>{
+        cr.removeFromScene(); stage.creature = null;
+        setState('ESCAPED','warn');
+        $('hp-box').classList.add('empty');
+        $('hp-name').textContent='— — —'; $('hp-lv').textContent='Lv.??'; $('hp-num').textContent='000';
+      }, 1000);
+    }
+  }, 1500);
+});
+
+/* ---- Inventory render ---- */
+function renderInventory(){
+  const grid = $('inv-grid');
+  grid.innerHTML = '';
+  const list = captor.list;
+  const cells = Math.max(30, Math.ceil(list.length/6)*6);
+  for(let i=0;i<cells;i++){
+    const c = document.createElement('div');
+    const item = list[i];
+    if(item){
+      c.className = 'pc-cell' + (item.shiny ? ' shiny' : '');
+      c.title = `${item.name} · GEN ${item.gen} · ${item.region}`;
+      c.innerHTML = `<img src="${item.sprite}" alt="${item.name}"/><div class="nm">${item.name}</div>`;
+    }else{
+      c.className = 'pc-cell empty';
+    }
+    grid.appendChild(c);
+  }
+}
+renderInventory();
+
+$('btn-clear').addEventListener('click', ()=>{
+  captor.clear(); renderInventory(); updateTrainer();
+  audio.playSfx('click');
+  showToast('PC Box cleared','');
+});
+
+// Update sound LED states
+$('btn-sfx').classList.add('on');
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,2256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Pocket AR Encounter — Regions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   Pocket AR Encounter — single-file prototype
+   Dark game-UI · neon cyan/purple/green · glassmorphism · HUD
+   ============================================================ */
+
+:root{
+  --bg:           #05070E;
+  --bg-2:         #080C18;
+  --panel:        rgba(14,21,40,0.62);
+  --panel-solid:  #0E1528;
+  --line:         rgba(140,180,255,0.10);
+  --line-2:       rgba(140,180,255,0.18);
+  --text:         #E7EDF8;
+  --text-dim:     #8A95B0;
+  --text-faint:   #5A6480;
+
+  --cyan:         #4DE3FF;
+  --cyan-deep:    #1AA9CF;
+  --purple:       #B080FF;
+  --purple-deep:  #7A4BD1;
+  --green:        #5EFFB1;
+  --amber:        #FFB54D;
+  --pink:         #FF5E9C;
+  --red:          #FF5E7A;
+
+  --radius-sm: 8px;
+  --radius:    14px;
+  --radius-lg: 22px;
+
+  --shadow-glow: 0 0 0 1px rgba(77,227,255,0.25), 0 12px 40px -10px rgba(77,227,255,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
+  --shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset, 0 30px 60px -30px rgba(0,0,0,0.7), 0 0 0 1px var(--line);
+
+  --type-normal: #A8A77A; --type-fire: #EE8130; --type-water: #6390F0; --type-electric: #F7D02C;
+  --type-grass: #7AC74C;  --type-ice: #96D9D6;  --type-fighting: #C22E28; --type-poison: #A33EA1;
+  --type-ground: #E2BF65; --type-flying: #A98FF3; --type-psychic: #F95587; --type-bug: #A6B91A;
+  --type-rock: #B6A136;   --type-ghost: #735797; --type-dragon: #6F35FC; --type-dark: #705746;
+  --type-steel: #B7B7CE;  --type-fairy: #D685AD;
+}
+
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; }
+body{
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(176,128,255,0.10), transparent 60%),
+    radial-gradient(900px 600px at -10% 30%, rgba(77,227,255,0.08), transparent 60%),
+    linear-gradient(180deg, #04060C 0%, #05070E 40%, #05070E 100%);
+  color:var(--text);
+  font-family:'Space Grotesk', system-ui, sans-serif;
+  font-size:15px; line-height:1.5;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* subtle scanline / noise overlay */
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:1;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 3px);
+  mix-blend-mode:overlay; opacity:0.6;
+}
+
+::selection{ background:rgba(77,227,255,0.35); color:#fff; }
+button{ font-family:inherit; }
+a{ color:inherit; }
+
+.mono{ font-family:'JetBrains Mono', ui-monospace, monospace; letter-spacing:0.02em; }
+.dim{ color:var(--text-dim); }
+.faint{ color:var(--text-faint); }
+
+/* ========== Header ========== */
+.app-header{
+  position:sticky; top:0; z-index:50;
+  display:flex; align-items:center; gap:18px;
+  padding:14px 28px;
+  background:linear-gradient(180deg, rgba(5,7,14,0.85), rgba(5,7,14,0.55) 70%, transparent);
+  backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.logo{
+  display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:0.02em;
+}
+.logo .mark{
+  width:30px; height:30px; border-radius:8px;
+  background:
+    radial-gradient(circle at 30% 30%, var(--cyan), transparent 55%),
+    radial-gradient(circle at 70% 70%, var(--purple), transparent 60%),
+    #0c1224;
+  border:1px solid var(--line-2);
+  box-shadow:0 0 22px -4px rgba(77,227,255,0.55), inset 0 1px 0 rgba(255,255,255,0.1);
+  position:relative; overflow:hidden;
+}
+.logo .mark::after{
+  content:""; position:absolute; inset:0;
+  background:repeating-linear-gradient(45deg, transparent 0 6px, rgba(255,255,255,0.08) 6px 7px);
+  opacity:.4;
+}
+.logo .name{ font-size:15px; }
+.logo .name span{ color:var(--cyan); }
+
+.app-nav{
+  margin-left:auto; display:flex; gap:6px; align-items:center;
+}
+.nav-link{
+  font-size:13px; color:var(--text-dim); padding:8px 12px; border-radius:8px;
+  text-decoration:none; transition:all .15s;
+}
+.nav-link:hover{ color:var(--text); background:rgba(255,255,255,0.04); }
+
+.icon-btn{
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid var(--line);
+  color:var(--text);
+  border-radius:10px; padding:8px 12px; font-size:12px;
+  cursor:pointer; transition:all .15s;
+  font-family:'JetBrains Mono',monospace;
+}
+.icon-btn:hover{ border-color:var(--cyan); color:var(--cyan); background:rgba(77,227,255,0.06); }
+.icon-btn.on{ color:var(--cyan); border-color:rgba(77,227,255,0.4); }
+.icon-btn .dot{
+  width:7px;height:7px;border-radius:50%;background:var(--text-faint);
+  box-shadow:0 0 0 2px rgba(0,0,0,0.4);
+}
+.icon-btn.on .dot{ background:var(--cyan); box-shadow:0 0 8px var(--cyan); }
+
+/* ========== Buttons ========== */
+.btn{
+  position:relative; isolation:isolate;
+  display:inline-flex; align-items:center; gap:10px;
+  padding:13px 22px; border-radius:12px; border:1px solid var(--line-2);
+  background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+  color:var(--text); font-size:14px; font-weight:600; letter-spacing:0.01em;
+  cursor:pointer; transition:transform .12s, box-shadow .2s, border-color .2s;
+}
+.btn:hover{ transform:translateY(-1px); border-color:var(--line-2); }
+.btn:active{ transform:translateY(0); }
+.btn.primary{
+  background:
+    linear-gradient(180deg, rgba(77,227,255,0.18), rgba(77,227,255,0.05)),
+    linear-gradient(180deg, #0a1a28, #07111c);
+  border-color:rgba(77,227,255,0.45);
+  color:#E8FBFF;
+  box-shadow: 0 10px 30px -10px rgba(77,227,255,0.55), inset 0 0 0 1px rgba(77,227,255,0.18);
+}
+.btn.primary::after{
+  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background:radial-gradient(60% 100% at 50% 0%, rgba(77,227,255,0.35), transparent 60%);
+  opacity:.6; z-index:-1;
+}
+.btn.ghost{ background:transparent; }
+.btn.tiny{ padding:7px 12px; font-size:12px; border-radius:8px; }
+.btn .key{
+  font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim);
+  padding:2px 5px; border:1px solid var(--line); border-radius:4px;
+}
+
+/* ========== Hero ========== */
+.hero{
+  position:relative; min-height:88vh;
+  padding:60px 28px 80px;
+  display:grid; grid-template-columns: 1.05fr 1fr; gap:50px;
+  align-items:center; overflow:hidden;
+}
+.hero::before{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:
+    radial-gradient(40% 30% at 50% 110%, rgba(77,227,255,0.18), transparent 70%);
+}
+.hero-content{ position:relative; z-index:3; max-width:640px; }
+.eyebrow{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 12px; border-radius:999px;
+  border:1px solid var(--line-2);
+  background:rgba(176,128,255,0.06);
+  font-family:'JetBrains Mono',monospace; font-size:11px;
+  color:var(--purple); letter-spacing:0.12em; text-transform:uppercase;
+}
+.eyebrow .pulse{
+  width:6px;height:6px;border-radius:50%;background:var(--purple);
+  box-shadow:0 0 0 0 var(--purple); animation:pulse 1.6s infinite;
+}
+@keyframes pulse{
+  0%{ box-shadow:0 0 0 0 rgba(176,128,255,0.55); }
+  70%{ box-shadow:0 0 0 10px rgba(176,128,255,0); }
+  100%{ box-shadow:0 0 0 0 rgba(176,128,255,0); }
+}
+
+.hero h1{
+  font-size: clamp(40px, 5.8vw, 76px);
+  line-height:0.98; letter-spacing:-0.02em; margin:18px 0 14px;
+  font-weight:600;
+}
+.hero h1 .neon{
+  background:linear-gradient(180deg, #fff 0%, var(--cyan) 60%, var(--purple) 110%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.hero p.lede{
+  font-size:18px; color:var(--text-dim); max-width:540px; margin:0 0 30px;
+}
+.hero-cta{ display:flex; flex-wrap:wrap; gap:12px; }
+.hero-badges{
+  display:flex; flex-wrap:wrap; gap:8px; margin-top:34px;
+}
+.badge{
+  font-family:'JetBrains Mono',monospace; font-size:11px;
+  padding:6px 10px; border-radius:999px;
+  background:rgba(255,255,255,0.03); border:1px solid var(--line);
+  color:var(--text-dim); letter-spacing:0.04em;
+}
+.badge.ok{ color:var(--green); border-color:rgba(94,255,177,0.25); background:rgba(94,255,177,0.05); }
+
+/* hero canvas frame */
+.hero-stage{
+  position:relative; aspect-ratio: 1 / 1; max-height:640px;
+  border-radius:24px; overflow:hidden;
+  border:1px solid var(--line-2);
+  background:
+    radial-gradient(circle at 50% 120%, rgba(77,227,255,0.15), transparent 60%),
+    linear-gradient(180deg, #060B18, #03050B 100%);
+  box-shadow: 0 60px 120px -40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.hero-stage canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+/* HUD chrome over hero canvas */
+.hud-corner{ position:absolute; pointer-events:none; }
+.hud-corner svg{ width:38px; height:38px; }
+.hud-tl{ top:14px; left:14px; }
+.hud-tr{ top:14px; right:14px; transform:scaleX(-1); }
+.hud-bl{ bottom:14px; left:14px; transform:scaleY(-1); }
+.hud-br{ bottom:14px; right:14px; transform:scale(-1,-1); }
+
+.hud-readout{
+  position:absolute; top:18px; left:60px; right:60px;
+  display:flex; justify-content:space-between;
+  font-family:'JetBrains Mono',monospace; font-size:10px;
+  color:var(--cyan); letter-spacing:0.18em; pointer-events:none;
+  text-shadow:0 0 12px rgba(77,227,255,0.6);
+}
+.hud-readout span{ opacity:0.85; }
+
+.hud-foot{
+  position:absolute; left:18px; right:18px; bottom:18px;
+  display:flex; justify-content:space-between; align-items:flex-end;
+  pointer-events:none; font-family:'JetBrains Mono',monospace;
+}
+.hud-foot .tag{
+  background:rgba(5,8,16,0.55); backdrop-filter:blur(8px);
+  border:1px solid rgba(77,227,255,0.25); border-radius:8px;
+  padding:6px 10px; font-size:10px; letter-spacing:0.16em; color:var(--cyan);
+}
+.hud-foot .tag.alt{ color:var(--purple); border-color:rgba(176,128,255,0.3); }
+
+/* ========== Section heading ========== */
+.section{
+  position:relative; padding:80px 28px; max-width:1480px; margin:0 auto;
+  z-index:2;
+}
+.section-head{
+  display:flex; align-items:flex-end; justify-content:space-between; gap:30px;
+  margin-bottom:34px; padding-bottom:22px;
+  border-bottom:1px solid var(--line);
+}
+.section-head .num{
+  font-family:'JetBrains Mono',monospace; font-size:11px;
+  color:var(--cyan); letter-spacing:0.2em; margin-bottom:8px;
+  display:block; text-transform:uppercase;
+}
+.section-head h2{
+  font-size:clamp(28px,3.4vw,42px); margin:0; letter-spacing:-0.02em;
+  line-height:1.05; font-weight:600;
+}
+.section-head .desc{ color:var(--text-dim); max-width:520px; font-size:15px; }
+
+/* ========== Filters ========== */
+.filters{
+  display:grid; grid-template-columns: 1.4fr 1.4fr 1fr; gap:18px;
+}
+.filter-card{
+  background:var(--panel); backdrop-filter:blur(20px);
+  border:1px solid var(--line); border-radius:var(--radius-lg);
+  padding:22px; box-shadow:var(--shadow-card);
+  position:relative; overflow:hidden;
+}
+.filter-card h3{
+  font-size:13px; font-family:'JetBrains Mono',monospace; letter-spacing:0.15em;
+  color:var(--text-dim); margin:0 0 4px; text-transform:uppercase;
+}
+.filter-card .sub{ font-size:13px; color:var(--text-faint); margin-bottom:18px; }
+.filter-card .count{
+  position:absolute; top:18px; right:18px;
+  font-family:'JetBrains Mono',monospace; font-size:11px;
+  padding:4px 8px; border-radius:6px;
+  background:rgba(77,227,255,0.08); border:1px solid rgba(77,227,255,0.2);
+  color:var(--cyan);
+}
+.chips{ display:flex; flex-wrap:wrap; gap:8px; }
+.chip{
+  font-size:12px; padding:7px 13px; border-radius:999px;
+  background:rgba(255,255,255,0.03); border:1px solid var(--line);
+  color:var(--text-dim); cursor:pointer;
+  transition:all .15s; user-select:none;
+  display:inline-flex; align-items:center; gap:7px;
+  font-family:'JetBrains Mono',monospace; letter-spacing:0.04em;
+}
+.chip:hover{ color:var(--text); border-color:var(--line-2); background:rgba(255,255,255,0.05); }
+.chip.active{
+  color:#04111A; background:var(--cyan); border-color:var(--cyan);
+  box-shadow:0 0 18px -2px rgba(77,227,255,0.7);
+}
+.chip.active.purple{ background:var(--purple); border-color:var(--purple); box-shadow:0 0 18px -2px rgba(176,128,255,0.7); color:#170825; }
+.chip .sm{ font-size:10px; opacity:.7; }
+.chip.skel{
+  width:90px; height:28px; background:linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+  background-size:200% 100%; animation:shimmer 1.4s infinite;
+  border-radius:999px; cursor:default;
+}
+@keyframes shimmer{ 0%{ background-position:200% 0; } 100%{ background-position:-200% 0; } }
+
+.chip.t-normal{ background:rgba(168,167,122,0.14); color:#D8D7B2; border-color:rgba(168,167,122,0.3); }
+.chip.t-fire{ background:rgba(238,129,48,0.14); color:#FFBD80; border-color:rgba(238,129,48,0.35); }
+.chip.t-water{ background:rgba(99,144,240,0.14); color:#B9CFFF; border-color:rgba(99,144,240,0.35); }
+.chip.t-electric{ background:rgba(247,208,44,0.14); color:#FFE782; border-color:rgba(247,208,44,0.35); }
+.chip.t-grass{ background:rgba(122,199,76,0.14); color:#C5F0A0; border-color:rgba(122,199,76,0.35); }
+.chip.t-ice{ background:rgba(150,217,214,0.14); color:#C8F2F0; border-color:rgba(150,217,214,0.35); }
+.chip.t-fighting{ background:rgba(194,46,40,0.14); color:#FFA39E; border-color:rgba(194,46,40,0.35); }
+.chip.t-poison{ background:rgba(163,62,161,0.14); color:#E8A5E6; border-color:rgba(163,62,161,0.35); }
+.chip.t-ground{ background:rgba(226,191,101,0.14); color:#F5DEA2; border-color:rgba(226,191,101,0.35); }
+.chip.t-flying{ background:rgba(169,143,243,0.14); color:#D9CCFB; border-color:rgba(169,143,243,0.35); }
+.chip.t-psychic{ background:rgba(249,85,135,0.14); color:#FFB1C8; border-color:rgba(249,85,135,0.35); }
+.chip.t-bug{ background:rgba(166,185,26,0.14); color:#D8E591; border-color:rgba(166,185,26,0.35); }
+.chip.t-rock{ background:rgba(182,161,54,0.14); color:#E8D78A; border-color:rgba(182,161,54,0.35); }
+.chip.t-ghost{ background:rgba(115,87,151,0.14); color:#C7B5E8; border-color:rgba(115,87,151,0.35); }
+.chip.t-dragon{ background:rgba(111,53,252,0.14); color:#C3A2FF; border-color:rgba(111,53,252,0.4); }
+.chip.t-dark{ background:rgba(112,87,70,0.14); color:#D6BCA8; border-color:rgba(112,87,70,0.35); }
+.chip.t-steel{ background:rgba(183,183,206,0.14); color:#E0E0EE; border-color:rgba(183,183,206,0.35); }
+.chip.t-fairy{ background:rgba(214,133,173,0.14); color:#F2C2D9; border-color:rgba(214,133,173,0.35); }
+.chip.t-normal.active,.chip.t-fire.active,.chip.t-water.active,.chip.t-electric.active,.chip.t-grass.active,
+.chip.t-ice.active,.chip.t-fighting.active,.chip.t-poison.active,.chip.t-ground.active,.chip.t-flying.active,
+.chip.t-psychic.active,.chip.t-bug.active,.chip.t-rock.active,.chip.t-ghost.active,.chip.t-dragon.active,
+.chip.t-dark.active,.chip.t-steel.active,.chip.t-fairy.active{
+  color:#fff; box-shadow:0 0 0 1px rgba(255,255,255,0.3), 0 0 18px -2px currentColor;
+}
+
+.toggle-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+.toggle{
+  display:flex; align-items:center; gap:10px;
+  padding:9px 14px; border-radius:10px;
+  background:rgba(255,255,255,0.03); border:1px solid var(--line); cursor:pointer;
+  font-size:13px; user-select:none; transition:all .15s;
+}
+.toggle:hover{ border-color:var(--line-2); }
+.toggle .sw{
+  width:30px; height:18px; border-radius:999px;
+  background:rgba(255,255,255,0.08); position:relative; transition:all .2s;
+  border:1px solid var(--line-2);
+}
+.toggle .sw::after{
+  content:""; position:absolute; left:2px; top:2px; width:12px; height:12px; border-radius:50%;
+  background:var(--text-dim); transition:all .2s;
+}
+.toggle.on .sw{ background:rgba(77,227,255,0.22); border-color:rgba(77,227,255,0.4); }
+.toggle.on .sw::after{ left:14px; background:var(--cyan); box-shadow:0 0 8px var(--cyan); }
+.toggle.on{ color:var(--text); }
+
+select.sprite-select{
+  width:100%; padding:10px 12px; border-radius:10px;
+  background:rgba(255,255,255,0.04); color:var(--text);
+  border:1px solid var(--line); font-family:inherit; font-size:13px; margin-top:8px;
+  cursor:pointer;
+}
+select.sprite-select:focus{ outline:none; border-color:var(--cyan); }
+
+/* ========== Experience (AR / Fallback) ========== */
+.experience-grid{
+  display:grid; grid-template-columns: 1fr 380px; gap:24px;
+  align-items:stretch;
+}
+.stage{
+  position:relative; aspect-ratio: 16/10;
+  background:
+    radial-gradient(circle at 50% 60%, rgba(77,227,255,0.08), transparent 60%),
+    linear-gradient(180deg, #050913, #02040A);
+  border:1px solid var(--line-2);
+  border-radius:var(--radius-lg);
+  overflow:hidden;
+  box-shadow:var(--shadow-card);
+}
+.stage canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+/* HUD overlays inside stage */
+.stage .crosshair{
+  position:absolute; left:50%; top:50%; width:18px; height:18px;
+  margin-left:-9px; margin-top:-9px; pointer-events:none; opacity:.55;
+}
+.stage .crosshair::before, .stage .crosshair::after{
+  content:""; position:absolute; background:var(--cyan); box-shadow:0 0 6px var(--cyan);
+}
+.stage .crosshair::before{ left:50%; top:0; bottom:0; width:1px; margin-left:-0.5px; }
+.stage .crosshair::after{ top:50%; left:0; right:0; height:1px; margin-top:-0.5px; }
+
+.stage .status-row{
+  position:absolute; left:18px; top:18px; right:18px;
+  display:flex; justify-content:space-between; pointer-events:none;
+  font-family:'JetBrains Mono',monospace; font-size:11px;
+  letter-spacing:0.15em; text-transform:uppercase;
+}
+.stage .pill{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:7px 12px; border-radius:999px;
+  background:rgba(5,8,16,0.7); backdrop-filter:blur(8px);
+  border:1px solid var(--line-2);
+}
+.stage .pill .dot{
+  width:7px; height:7px; border-radius:50%; background:var(--cyan); box-shadow:0 0 8px var(--cyan);
+  animation:blink 1.2s infinite;
+}
+.stage .pill.warn .dot{ background:var(--amber); box-shadow:0 0 8px var(--amber); }
+.stage .pill.ok .dot{ background:var(--green); box-shadow:0 0 8px var(--green); }
+@keyframes blink{ 50%{ opacity:0.3; } }
+
+.stage .action-dock{
+  position:absolute; left:50%; transform:translateX(-50%);
+  bottom:18px; display:flex; gap:8px; align-items:center;
+  background:rgba(5,8,16,0.78); backdrop-filter:blur(14px);
+  border:1px solid var(--line-2); border-radius:16px; padding:8px;
+  box-shadow:0 20px 50px -20px rgba(0,0,0,0.6);
+}
+.stage .dock-btn{
+  display:inline-flex; align-items:center; gap:8px;
+  background:transparent; color:var(--text); border:0; cursor:pointer;
+  padding:9px 14px; border-radius:10px; font-size:13px; font-weight:600;
+  transition:all .15s; font-family:inherit;
+}
+.stage .dock-btn:hover{ background:rgba(255,255,255,0.05); }
+.stage .dock-btn.primary{
+  background:linear-gradient(180deg, rgba(77,227,255,0.25), rgba(77,227,255,0.05));
+  border:1px solid rgba(77,227,255,0.4);
+  color:#E8FBFF; box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), 0 0 18px -4px rgba(77,227,255,0.55);
+}
+.stage .dock-btn.capture{
+  background:linear-gradient(180deg, rgba(255,94,156,0.25), rgba(255,94,156,0.05));
+  border:1px solid rgba(255,94,156,0.45);
+  color:#ffd9e7;
+}
+.stage .dock-btn .ic{ width:14px;height:14px; display:inline-block; }
+
+.stage .toggle-stack{
+  position:absolute; right:18px; bottom:18px;
+  display:flex; flex-direction:column; gap:6px; pointer-events:auto;
+}
+.stage .toggle-stack .icon-btn{ background:rgba(5,8,16,0.7); }
+
+.stage .toast{
+  position:absolute; left:50%; top:32%; transform:translate(-50%,-50%);
+  padding:14px 22px; border-radius:14px;
+  background:rgba(5,8,16,0.85); border:1px solid var(--line-2);
+  font-family:'JetBrains Mono',monospace; font-size:14px; letter-spacing:0.06em;
+  opacity:0; transition:opacity .25s; pointer-events:none;
+}
+.stage .toast.show{ opacity:1; }
+.stage .toast.success{ color:var(--green); border-color:rgba(94,255,177,0.4); box-shadow:0 0 30px -8px var(--green); }
+.stage .toast.fail{ color:var(--red); border-color:rgba(255,94,122,0.4); }
+
+/* Side panel */
+.side-stack{ display:flex; flex-direction:column; gap:18px; }
+.side-panel{
+  background:var(--panel); backdrop-filter:blur(20px);
+  border:1px solid var(--line); border-radius:var(--radius-lg);
+  padding:22px;
+}
+.side-panel h3{
+  margin:0 0 14px; font-size:12px; font-family:'JetBrains Mono',monospace;
+  letter-spacing:0.18em; color:var(--text-dim); text-transform:uppercase;
+}
+.status-list{ display:flex; flex-direction:column; gap:10px; }
+.status-row{
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:13px; font-family:'JetBrains Mono',monospace;
+}
+.status-row .k{ color:var(--text-dim); letter-spacing:0.04em; }
+.status-row .v{ color:var(--text); }
+.status-row .v.ok{ color:var(--green); }
+.status-row .v.warn{ color:var(--amber); }
+
+/* Creature card */
+.creature-card{
+  background:linear-gradient(180deg, rgba(20,30,55,0.85), rgba(8,12,24,0.85));
+  border:1px solid var(--line-2);
+  border-radius:var(--radius-lg);
+  padding:0; overflow:hidden; position:relative;
+}
+.creature-card.empty{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:50px 20px; text-align:center; color:var(--text-faint);
+  min-height:280px;
+}
+.creature-card .cc-head{
+  display:flex; justify-content:space-between; align-items:flex-start;
+  padding:18px 20px 0;
+}
+.creature-card .cc-name{
+  font-size:22px; font-weight:600; letter-spacing:-0.01em; text-transform:capitalize;
+}
+.creature-card .cc-num{
+  font-family:'JetBrains Mono',monospace; color:var(--text-faint); font-size:12px;
+}
+.creature-card .cc-art{
+  height:180px; position:relative; overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 60%, rgba(77,227,255,0.18), transparent 60%),
+    linear-gradient(180deg, rgba(8,12,24,0), rgba(8,12,24,0.5));
+  display:flex; align-items:center; justify-content:center;
+}
+.creature-card .cc-art img{
+  max-height:160px; max-width:160px; image-rendering:pixelated;
+  filter:drop-shadow(0 6px 20px rgba(77,227,255,0.35));
+}
+.creature-card .cc-art .grid{
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(77,227,255,0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(77,227,255,0.07) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image:radial-gradient(circle, black 30%, transparent 80%);
+}
+.cc-types{ display:flex; gap:6px; padding:0 20px 12px; flex-wrap:wrap; }
+.cc-types .type{
+  font-family:'JetBrains Mono',monospace; font-size:11px; padding:4px 10px;
+  border-radius:999px; text-transform:uppercase; letter-spacing:0.1em;
+  color:#fff;
+}
+.cc-meta{
+  display:grid; grid-template-columns:1fr 1fr 1fr; gap:1px;
+  background:var(--line); margin:0 0 12px;
+}
+.cc-meta div{
+  background:#0a1124; padding:10px 14px;
+}
+.cc-meta .k{ font-size:10px; color:var(--text-faint); letter-spacing:0.16em; text-transform:uppercase; font-family:'JetBrains Mono',monospace; }
+.cc-meta .v{ font-size:14px; color:var(--text); margin-top:2px; }
+.cc-stats{ padding:4px 20px 18px; display:flex; flex-direction:column; gap:7px; }
+.cc-stat{ display:grid; grid-template-columns:90px 1fr 40px; align-items:center; gap:10px; font-size:11px; font-family:'JetBrains Mono',monospace; }
+.cc-stat .name{ color:var(--text-faint); text-transform:uppercase; letter-spacing:0.1em; }
+.cc-stat .bar{ height:5px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; }
+.cc-stat .bar div{ height:100%; background:linear-gradient(90deg, var(--cyan), var(--purple)); border-radius:3px; }
+.cc-stat .num{ color:var(--text); text-align:right; }
+
+/* Inventory */
+.inv-grid{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(94px, 1fr));
+  gap:10px;
+}
+.inv-cell{
+  position:relative; aspect-ratio:1; border-radius:12px;
+  background:radial-gradient(circle at 50% 60%, rgba(77,227,255,0.12), transparent 70%), rgba(255,255,255,0.025);
+  border:1px solid var(--line);
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden; cursor:pointer; transition:all .15s;
+}
+.inv-cell:hover{ border-color:var(--cyan); transform:translateY(-2px); }
+.inv-cell img{ max-width:80%; max-height:80%; image-rendering:pixelated; }
+.inv-cell .nm{
+  position:absolute; left:0; right:0; bottom:0;
+  font-family:'JetBrains Mono',monospace; font-size:9px;
+  padding:3px 4px;
+  background:rgba(5,7,14,0.8); color:var(--text);
+  letter-spacing:0.06em; text-align:center;
+  text-transform:capitalize;
+  overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+}
+.inv-cell.empty{
+  background:rgba(255,255,255,0.015); border-style:dashed; color:var(--text-faint);
+  font-family:'JetBrains Mono',monospace; font-size:10px;
+}
+
+/* Tech / legal */
+.tech-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+.tech-card{
+  padding:18px; border-radius:14px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0));
+  border:1px solid var(--line);
+}
+.tech-card .lbl{ font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.18em; color:var(--cyan); text-transform:uppercase; }
+.tech-card h4{ margin:8px 0 4px; font-size:16px; font-weight:600; }
+.tech-card p{ margin:0; font-size:13px; color:var(--text-dim); }
+
+.legal{
+  margin-top:60px;
+  padding:30px; border-radius:var(--radius-lg);
+  border:1px dashed rgba(255,181,77,0.3);
+  background:rgba(255,181,77,0.04);
+  display:grid; grid-template-columns: auto 1fr; gap:22px; align-items:center;
+}
+.legal .icon{
+  width:54px; height:54px; flex-shrink:0; border-radius:14px;
+  background:rgba(255,181,77,0.12); border:1px solid rgba(255,181,77,0.3);
+  display:flex; align-items:center; justify-content:center;
+  color:var(--amber); font-size:24px;
+}
+.legal h4{ margin:0 0 6px; font-size:15px; color:var(--amber); }
+.legal p{ margin:0; font-size:13px; color:var(--text-dim); }
+.legal ul{ margin:8px 0 0; padding-left:20px; font-size:12px; color:var(--text-faint); }
+.legal ul li{ margin-bottom:2px; }
+
+footer{
+  padding:40px 28px; border-top:1px solid var(--line);
+  display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;
+  color:var(--text-faint); font-size:12px;
+  font-family:'JetBrains Mono',monospace; letter-spacing:0.06em;
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 1100px){
+  .hero{ grid-template-columns:1fr; padding:40px 22px 60px; gap:30px; }
+  .hero-stage{ max-height:520px; }
+  .filters{ grid-template-columns:1fr; }
+  .experience-grid{ grid-template-columns:1fr; }
+  .tech-grid{ grid-template-columns:repeat(2,1fr); }
+  .legal{ grid-template-columns:1fr; text-align:left; }
+}
+@media (max-width: 640px){
+  .app-header{ padding:12px 16px; gap:10px; }
+  .nav-link{ display:none; }
+  .section{ padding:50px 16px; }
+  .hero{ padding:30px 16px 40px; }
+  .hero h1{ font-size:42px; }
+  .tech-grid{ grid-template-columns:1fr; }
+  .stage .action-dock{ flex-wrap:wrap; max-width:calc(100% - 32px); justify-content:center; }
+  .stage .status-row{ font-size:9px; }
+  .cc-meta{ grid-template-columns:1fr 1fr; }
+}
+
+.spinner{
+  width:14px; height:14px; border-radius:50%;
+  border:2px solid rgba(77,227,255,0.2); border-top-color:var(--cyan);
+  animation:spin 0.8s linear infinite; display:inline-block;
+}
+@keyframes spin{ 100%{ transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     HEADER
+     ============================================================ -->
+<header class="app-header">
+  <div class="logo">
+    <div class="mark"></div>
+    <div class="name">POCKET<span>·</span>AR</div>
+  </div>
+  <nav class="app-nav">
+    <a class="nav-link" href="#experience">Experience</a>
+    <a class="nav-link" href="#filters">Regions</a>
+    <a class="nav-link" href="#inventory">Inventory</a>
+    <a class="nav-link" href="#tech">Tech</a>
+    <button class="icon-btn" id="btn-music"><span class="dot"></span>MUSIC</button>
+    <button class="icon-btn on" id="btn-sfx"><span class="dot"></span>SFX</button>
+  </nav>
+</header>
+
+<!-- ============================================================
+     HERO
+     ============================================================ -->
+<section class="hero">
+  <div class="hero-content">
+    <span class="eyebrow"><span class="pulse"></span>WEBXR · THREE.JS · POKÉAPI</span>
+    <h1>Pocket <span class="neon">AR Encounter</span><br/>across every region.</h1>
+    <p class="lede">2D creature sprites projected onto your scanned environment with WebXR hit-test, a procedural soundtrack, and a fully playable 3D fallback when AR isn't supported. Every generation, every region — fetched live.</p>
+    <div class="hero-cta">
+      <button class="btn primary" id="cta-ar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v10l9 5 9-5V7l-9-5-9 5z"/><path d="M3 7l9 5 9-5"/><path d="M12 22V12"/></svg>
+        Start AR
+      </button>
+      <button class="btn ghost" id="cta-demo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        See 3D demo
+      </button>
+    </div>
+    <div class="hero-badges">
+      <span class="badge ok">● WebXR</span>
+      <span class="badge">Three.js</span>
+      <span class="badge">PokéAPI</span>
+      <span class="badge">2D Sprites</span>
+      <span class="badge">Physics</span>
+      <span class="badge">Audio</span>
+      <span class="badge">All Regions</span>
+    </div>
+  </div>
+
+  <div class="hero-stage" id="hero-stage">
+    <canvas id="hero-canvas"></canvas>
+    <div class="hud-corner hud-tl">
+      <svg viewBox="0 0 40 40" fill="none" stroke="#4DE3FF" stroke-width="1.5"><path d="M2 14 V2 H14"/><path d="M2 6 H10"/></svg>
+    </div>
+    <div class="hud-corner hud-tr">
+      <svg viewBox="0 0 40 40" fill="none" stroke="#4DE3FF" stroke-width="1.5"><path d="M2 14 V2 H14"/><path d="M2 6 H10"/></svg>
+    </div>
+    <div class="hud-corner hud-bl">
+      <svg viewBox="0 0 40 40" fill="none" stroke="#B080FF" stroke-width="1.5"><path d="M2 14 V2 H14"/><path d="M2 6 H10"/></svg>
+    </div>
+    <div class="hud-corner hud-br">
+      <svg viewBox="0 0 40 40" fill="none" stroke="#B080FF" stroke-width="1.5"><path d="M2 14 V2 H14"/><path d="M2 6 H10"/></svg>
+    </div>
+    <div class="hud-readout">
+      <span>POCKET-AR · v0.1.0-PROTO</span>
+      <span>HERO//SCENE-OK</span>
+    </div>
+    <div class="hud-foot">
+      <span class="tag">REGIONAL ATLAS · LIVE</span>
+      <span class="tag alt" id="hero-region-tag">KANTO · JOHTO · HOENN · ...</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     FILTERS
+     ============================================================ -->
+<section class="section" id="filters">
+  <div class="section-head">
+    <div>
+      <span class="num">02 · ENCOUNTER FILTERS</span>
+      <h2>Tune your encounter.</h2>
+    </div>
+    <p class="desc">Generations and regions are pulled live from PokéAPI — not hardcoded. Filter by gen, region, type, sprite style, and shiny flag, then roll a sprite to project into AR.</p>
+  </div>
+
+  <div class="filters">
+    <div class="filter-card">
+      <h3>Generations</h3>
+      <span class="count" id="gen-count">…</span>
+      <div class="sub">All generations available from /generation</div>
+      <div class="chips" id="gens"></div>
+    </div>
+
+    <div class="filter-card">
+      <h3>Regions</h3>
+      <span class="count" id="reg-count">…</span>
+      <div class="sub">All regions available from /region — click in the hero to filter too</div>
+      <div class="chips" id="regs"></div>
+    </div>
+
+    <div class="filter-card">
+      <h3>Type · Style</h3>
+      <div class="sub">Filter elemental type and choose how sprites render</div>
+      <div class="chips" id="types"></div>
+      <div style="margin-top:14px;">
+        <label class="mono" style="font-size:10px; letter-spacing:0.15em; color:var(--text-dim); text-transform:uppercase;">Sprite style</label>
+        <select class="sprite-select" id="sprite-style">
+          <option value="showdown">Showdown · Animated</option>
+          <option value="genv">Gen V · Animated</option>
+          <option value="front">Classic Front</option>
+          <option value="home">Home Artwork</option>
+          <option value="official">Official Artwork</option>
+        </select>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle" id="tog-shiny"><span class="sw"></span>Shiny</div>
+        <div class="toggle on" id="tog-cry"><span class="sw"></span>Cry on spawn</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     EXPERIENCE
+     ============================================================ -->
+<section class="section" id="experience" style="padding-top:0;">
+  <div class="section-head">
+    <div>
+      <span class="num">03 · ENCOUNTER STAGE</span>
+      <h2>WebXR · Hit-test · Fallback 3D.</h2>
+    </div>
+    <p class="desc">When immersive-ar is available, sprites anchor on the scanned plane. Otherwise the playable 3D demo takes over with a click-to-place arena, virtual props and the same physics.</p>
+  </div>
+
+  <div class="experience-grid">
+    <div class="stage" id="stage">
+      <canvas id="ar-canvas"></canvas>
+      <div class="crosshair"></div>
+
+      <div class="status-row">
+        <span class="pill" id="stage-state"><span class="dot"></span><span id="state-label">CHECKING WEBXR…</span></span>
+        <span class="pill ok" id="stage-mode"><span class="dot"></span><span id="mode-label">3D FALLBACK</span></span>
+      </div>
+
+      <div class="action-dock">
+        <button class="dock-btn primary" id="btn-spawn">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M5 19l3-3M16 8l3-3"/></svg>
+          Generate encounter
+        </button>
+        <button class="dock-btn" id="btn-throw">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg>
+          Place
+        </button>
+        <button class="dock-btn capture" id="btn-capture">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/></svg>
+          Capture
+        </button>
+      </div>
+
+      <div class="toggle-stack">
+        <button class="icon-btn" id="tog-mesh"><span class="dot"></span>MESH</button>
+        <button class="icon-btn" id="tog-coll"><span class="dot"></span>COLLIDERS</button>
+        <button class="icon-btn" id="tog-occl"><span class="dot"></span>OCCLUSION</button>
+      </div>
+
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <div class="side-stack">
+      <div class="side-panel">
+        <h3>Status</h3>
+        <div class="status-list">
+          <div class="status-row"><span class="k">WEBXR</span><span class="v" id="s-webxr">checking…</span></div>
+          <div class="status-row"><span class="k">SURFACE</span><span class="v warn" id="s-surf">simulated</span></div>
+          <div class="status-row"><span class="k">RETICLE</span><span class="v" id="s-ret">—</span></div>
+          <div class="status-row"><span class="k">CREATURE</span><span class="v" id="s-creat">none</span></div>
+          <div class="status-row"><span class="k">PHYSICS</span><span class="v ok" id="s-phys">active</span></div>
+          <div class="status-row"><span class="k">CACHE</span><span class="v" id="s-cache">0 entries</span></div>
+        </div>
+      </div>
+
+      <div class="creature-card empty" id="creature-card">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>
+        <div style="margin-top:10px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.15em; text-transform:uppercase;">No encounter</div>
+        <div style="margin-top:6px; font-size:12px;">Hit <strong>Generate encounter</strong> to roll a creature</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     INVENTORY
+     ============================================================ -->
+<section class="section" id="inventory" style="padding-top:0;">
+  <div class="section-head">
+    <div>
+      <span class="num">04 · CAPTURE LOG</span>
+      <h2>Inventory.</h2>
+    </div>
+    <button class="btn ghost tiny" id="btn-clear">Clear captures</button>
+  </div>
+  <div class="inv-grid" id="inv-grid"></div>
+</section>
+
+<!-- ============================================================
+     TECH
+     ============================================================ -->
+<section class="section" id="tech" style="padding-top:0;">
+  <div class="section-head">
+    <div>
+      <span class="num">05 · UNDER THE HOOD</span>
+      <h2>What's wired up.</h2>
+    </div>
+    <p class="desc">Every system is a real class in this single-file prototype. Inspect the source — no build step, no framework.</p>
+  </div>
+  <div class="tech-grid">
+    <div class="tech-card"><span class="lbl">CLASS</span><h4>APIService</h4><p>PokéAPI fetcher with in-memory + localStorage cache. Sprite priority chain Showdown → Gen V → Front → Home → Official.</p></div>
+    <div class="tech-card"><span class="lbl">CLASS</span><h4>AudioManager</h4><p>Procedural chiptune music + Web Audio SFX (spawn, jump, capture, escape). Plays <code>cries.latest</code> when present.</p></div>
+    <div class="tech-card"><span class="lbl">CLASS</span><h4>ARScene</h4><p>Three.js + WebXR hit-test, animated reticle, controller-tap placement, virtual props on the detected plane.</p></div>
+    <div class="tech-card"><span class="lbl">CLASS</span><h4>FallbackScene</h4><p>Orbitable 3D arena with low-poly props, click-to-place, holographic floor, and the same physics + capture loop.</p></div>
+    <div class="tech-card"><span class="lbl">CLASS</span><h4>CreatureSprite</h4><p>THREE.Sprite billboard with type aura, scale from real height, idle bobbing, jump, hit-flash, capture shake.</p></div>
+    <div class="tech-card"><span class="lbl">CLASS</span><h4>SimplePhysics</h4><p>Gravity, ground collision, prop colliders, arena bounds, bounce, ground-tracking fake shadow.</p></div>
+    <div class="tech-card"><span class="lbl">CLASS</span><h4>CaptureSystem</h4><p>Chance from base HP, weight, simulated rarity, reticle distance + type. Persists inventory to localStorage.</p></div>
+    <div class="tech-card"><span class="lbl">EFFECTS</span><h4>Type FX</h4><p>Eleven type auras — electric sparks, fire glow, water bubbles, grass leaves, ghost smoke, psychic rings…</p></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     LEGAL
+     ============================================================ -->
+<section class="section" id="legal" style="padding-top:0;">
+  <div class="legal">
+    <div class="icon">⚠</div>
+    <div>
+      <h4>Educational prototype · not affiliated</h4>
+      <p>This is a non-commercial, non-official fan/research prototype. Pokémon and all related assets belong to their respective rights-holders.</p>
+      <ul>
+        <li>No official logos, music, or audio extracted from games.</li>
+        <li>Sprite + species data via the public PokéAPI for prototyping only.</li>
+        <li>For public/commercial release: replace with original creatures, your own sprites, and licensed audio.</li>
+        <li>Music is generated in-browser (Web Audio API). SFX are procedural.</li>
+        <li>Cache PokéAPI responses; respect rate limits.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>POCKET·AR · educational prototype · {{year}}</span>
+  <span>Three.js · WebXR · PokéAPI · Web Audio API</span>
+</footer>
+
+<!-- ============================================================
+     SCRIPTS
+     ============================================================ -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { ARButton } from 'three/addons/webxr/ARButton.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+document.querySelector('footer span:first-child').textContent =
+  `POCKET·AR · educational prototype · ${new Date().getFullYear()}`;
+
+/* ========================================================
+   APIService — PokéAPI with cache + sprite fallback chain
+   ======================================================== */
+class APIService {
+  constructor(){
+    this.base = 'https://pokeapi.co/api/v2';
+    this.mem  = new Map();
+    this.lsKey = 'pae:cache:v1';
+    this._loadLS();
+  }
+  _loadLS(){
+    try{
+      const raw = localStorage.getItem(this.lsKey);
+      if(raw){ const obj = JSON.parse(raw); Object.entries(obj).forEach(([k,v])=>this.mem.set(k,v)); }
+    }catch(e){}
+  }
+  _saveLS(){
+    try{
+      // only persist lightweight things (gens, regions, types)
+      const subset = {};
+      this.mem.forEach((v,k)=>{
+        if(/generation|region|type-list|gen-list|reg-list/.test(k)) subset[k]=v;
+      });
+      localStorage.setItem(this.lsKey, JSON.stringify(subset));
+    }catch(e){}
+  }
+  cacheGet(k){ return this.mem.get(k); }
+  cacheSet(k,v){ this.mem.set(k,v); this._saveLS(); return v; }
+  async _get(path){
+    const url = this.base + path;
+    if(this.mem.has(url)) return this.mem.get(url);
+    try{
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const json = await res.json();
+      this.mem.set(url, json);
+      this._saveLS();
+      return json;
+    }catch(err){
+      console.warn('[api]', url, err);
+      return null;
+    }
+  }
+  getPokemon(idOrName){ return this._get(`/pokemon/${idOrName}`); }
+  getSpecies(idOrName){ return this._get(`/pokemon-species/${idOrName}`); }
+  getType(name){ return this._get(`/type/${name}`); }
+  getAllGenerations(){ return this._get(`/generation?limit=50`); }
+  getGeneration(id){ return this._get(`/generation/${id}`); }
+  getAllRegions(){ return this._get(`/region?limit=50`); }
+  getRegion(id){ return this._get(`/region/${id}`); }
+  getPokedex(id){ return this._get(`/pokedex/${id}`); }
+
+  getBestSprite(p, style='showdown'){
+    if(!p?.sprites) return null;
+    const s = p.sprites;
+    const chain = {
+      showdown: [
+        s.other?.showdown?.front_default,
+        s.versions?.['generation-v']?.['black-white']?.animated?.front_default,
+        s.front_default,
+        s.other?.home?.front_default,
+        s.other?.['official-artwork']?.front_default,
+      ],
+      genv: [
+        s.versions?.['generation-v']?.['black-white']?.animated?.front_default,
+        s.other?.showdown?.front_default,
+        s.front_default,
+        s.other?.home?.front_default,
+      ],
+      front: [s.front_default, s.other?.home?.front_default, s.other?.['official-artwork']?.front_default],
+      home:  [s.other?.home?.front_default, s.front_default, s.other?.['official-artwork']?.front_default],
+      official:[s.other?.['official-artwork']?.front_default, s.other?.home?.front_default, s.front_default],
+    }[style] || [];
+    return chain.find(u=>u) || s.front_default;
+  }
+  getShinySprite(p, style='showdown'){
+    if(!p?.sprites) return null;
+    const s = p.sprites;
+    return s.other?.showdown?.front_shiny
+        || s.versions?.['generation-v']?.['black-white']?.animated?.front_shiny
+        || s.front_shiny
+        || s.other?.home?.front_shiny
+        || this.getBestSprite(p, style);
+  }
+  getCryUrl(p){
+    return p?.cries?.latest || p?.cries?.legacy || null;
+  }
+  async getRandomEncounter(filters){
+    const { generation, region, type } = filters;
+    let pool = null;
+    if(type){
+      const t = await this.getType(type);
+      pool = t?.pokemon?.map(x=>x.pokemon.name) || null;
+    }
+    if(generation){
+      const g = await this.getGeneration(generation);
+      const gNames = g?.pokemon_species?.map(s=>s.name) || [];
+      pool = pool ? pool.filter(n=>gNames.includes(n)) : gNames;
+    }
+    if(region && !generation){
+      // Map region -> main_generation
+      const r = await this.getRegion(region);
+      const genUrl = r?.main_generation?.url;
+      if(genUrl){
+        const id = genUrl.split('/').filter(Boolean).pop();
+        const g = await this.getGeneration(id);
+        const gNames = g?.pokemon_species?.map(s=>s.name) || [];
+        pool = pool ? pool.filter(n=>gNames.includes(n)) : gNames;
+      }
+    }
+    if(!pool || !pool.length){
+      // total list approximation – first 1010
+      const id = 1 + Math.floor(Math.random()*898);
+      return this.getPokemon(id);
+    }
+    const pick = pool[Math.floor(Math.random()*pool.length)];
+    return this.getPokemon(pick);
+  }
+}
+
+/* ========================================================
+   AudioManager — procedural music + SFX + cry
+   ======================================================== */
+class AudioManager{
+  constructor(){
+    this.ctx = null;
+    this.musicGain = null;
+    this.sfxGain = null;
+    this.musicOn = false;
+    this.sfxOn = true;
+    this.musicNodes = [];
+    this.cryEl = null;
+  }
+  unlock(){
+    if(this.ctx) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    this.ctx = new Ctx();
+    this.musicGain = this.ctx.createGain(); this.musicGain.gain.value = 0.0; this.musicGain.connect(this.ctx.destination);
+    this.sfxGain = this.ctx.createGain();  this.sfxGain.gain.value  = 0.4; this.sfxGain.connect(this.ctx.destination);
+  }
+  _osc(freq, dur, type='sine', gainStart=0.3, attack=0.005, release=0.1, out=null){
+    if(!this.sfxOn) return;
+    const ctx = this.ctx;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(gainStart, ctx.currentTime + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+    o.connect(g); g.connect(out || this.sfxGain);
+    o.start(); o.stop(ctx.currentTime + dur + 0.02);
+    return {o,g};
+  }
+  playSfx(name){
+    if(!this.ctx || !this.sfxOn) return;
+    const t = this.ctx.currentTime;
+    switch(name){
+      case 'click':   this._osc(700, 0.06, 'square', 0.18); break;
+      case 'select':  this._osc(520, 0.05, 'square', 0.2); setTimeout(()=>this._osc(780,0.06,'square',0.18), 60); break;
+      case 'scan':    [400,520,640,760].forEach((f,i)=>setTimeout(()=>this._osc(f,0.08,'sine',0.18), i*70)); break;
+      case 'surface': this._osc(880, 0.12, 'triangle', 0.25); setTimeout(()=>this._osc(1320,0.15,'triangle',0.2), 100); break;
+      case 'spawn':   [880,660,1320,990].forEach((f,i)=>setTimeout(()=>this._osc(f,0.1,'square',0.22), i*40)); break;
+      case 'jump':    this._osc(540, 0.08, 'square', 0.2); setTimeout(()=>this._osc(780,0.06,'square',0.18), 70); break;
+      case 'attack':  this._osc(120, 0.12, 'sawtooth', 0.3); setTimeout(()=>this._osc(220,0.1,'square',0.22),60); break;
+      case 'throw':   this._osc(300, 0.12, 'sawtooth', 0.22); break;
+      case 'shake':   this._osc(180, 0.05, 'square', 0.2); break;
+      case 'capture': [220,330,440,660,880].forEach((f,i)=>setTimeout(()=>this._osc(f,0.12,'square',0.22), i*90)); break;
+      case 'escape':  [660,440,330,220].forEach((f,i)=>setTimeout(()=>this._osc(f,0.12,'sawtooth',0.22), i*100)); break;
+      default: this._osc(440, 0.08, 'square', 0.18);
+    }
+  }
+  playCry(url){
+    if(!this.sfxOn || !url) return;
+    try{
+      if(this.cryEl){ this.cryEl.pause(); }
+      this.cryEl = new Audio(url);
+      this.cryEl.volume = 0.45;
+      this.cryEl.crossOrigin = 'anonymous';
+      this.cryEl.play().catch(()=>{});
+    }catch(e){}
+  }
+  startMusic(mood='adventure'){
+    if(!this.ctx || this.musicOn) return;
+    this.musicOn = true;
+    this.musicGain.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.musicGain.gain.linearRampToValueAtTime(0.13, this.ctx.currentTime + 1.5);
+
+    // pad + arp
+    const ctx = this.ctx;
+    const pad = ctx.createOscillator(); pad.type='sine'; pad.frequency.value = 110;
+    const pad2 = ctx.createOscillator(); pad2.type='sine'; pad2.frequency.value = 165;
+    const lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = 1200;
+    const padG = ctx.createGain(); padG.gain.value = 0.18;
+    pad.connect(lp); pad2.connect(lp); lp.connect(padG); padG.connect(this.musicGain);
+    pad.start(); pad2.start();
+    this.musicNodes.push(pad, pad2, lp, padG);
+
+    // arpeggio
+    const notes = [261.63, 329.63, 392.0, 523.25, 392.0, 329.63]; // C major arp
+    let i=0;
+    this._arpInterval = setInterval(()=>{
+      if(!this.musicOn) return;
+      const o = ctx.createOscillator(); o.type='triangle';
+      o.frequency.value = notes[i%notes.length] * (Math.random()>0.85? 2 : 1);
+      const g = ctx.createGain(); g.gain.value = 0;
+      g.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+      o.connect(g); g.connect(this.musicGain);
+      o.start(); o.stop(ctx.currentTime + 0.45);
+      i++;
+    }, 280);
+  }
+  stopMusic(){
+    if(!this.musicOn) return;
+    this.musicOn = false;
+    clearInterval(this._arpInterval);
+    if(!this.ctx) return;
+    this.musicGain.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.musicGain.gain.linearRampToValueAtTime(0.0, this.ctx.currentTime + 0.6);
+    setTimeout(()=>{
+      this.musicNodes.forEach(n=>{ try{ n.stop && n.stop(); n.disconnect && n.disconnect(); }catch(e){} });
+      this.musicNodes = [];
+    }, 800);
+  }
+  setSfx(on){ this.sfxOn = on; }
+  toggleMusic(){
+    this.unlock();
+    if(this.musicOn) this.stopMusic(); else this.startMusic();
+    return this.musicOn;
+  }
+}
+
+/* ========================================================
+   SimplePhysics — gravity, ground, props, bounce
+   ======================================================== */
+class SimplePhysics{
+  constructor(opts={}){
+    this.gravity = opts.gravity ?? -2.4;
+    this.groundY = opts.groundY ?? 0;
+    this.bounds  = opts.bounds  ?? 1.8;
+  }
+  step(body, dt, props=[]){
+    body.vy += this.gravity * dt;
+    body.x += body.vx * dt;
+    body.y += body.vy * dt;
+    body.z += body.vz * dt;
+
+    if(body.y <= this.groundY + body.r){
+      body.y = this.groundY + body.r;
+      if(body.vy < 0) body.vy = -body.vy * 0.4;
+      body.vx *= 0.86; body.vz *= 0.86;
+      if(Math.abs(body.vy) < 0.4) body.vy = 0;
+    }
+    const b = this.bounds;
+    if(Math.abs(body.x) > b){ body.x = Math.sign(body.x)*b; body.vx = -body.vx*0.5; }
+    if(Math.abs(body.z) > b){ body.z = Math.sign(body.z)*b; body.vz = -body.vz*0.5; }
+    // prop collisions (sphere vs cyl)
+    for(const p of props){
+      const dx = body.x - p.x, dz = body.z - p.z;
+      const d = Math.hypot(dx,dz);
+      const minD = (p.r||0.15) + body.r;
+      if(d < minD && body.y < (p.h||0.3)){
+        const nx = dx/(d||1), nz = dz/(d||1);
+        body.x = p.x + nx*minD; body.z = p.z + nz*minD;
+        body.vx = -body.vx*0.4; body.vz = -body.vz*0.4;
+      }
+    }
+  }
+}
+
+/* ========================================================
+   CreatureSprite — billboard sprite with aura + animations
+   ======================================================== */
+class CreatureSprite{
+  constructor(scene, pokemon, opts){
+    this.scene = scene;
+    this.pokemon = pokemon;
+    this.opts = opts;
+    this.types = pokemon.types?.map(t=>t.type.name) || ['normal'];
+    this.height = pokemon.height ? pokemon.height/10 : 0.5; // meters
+    this.weight = pokemon.weight ? pokemon.weight/10 : 5;
+    this.group = new THREE.Group();
+    this.body = { x:0, y:0.001, z:0, vx:0, vy:0, vz:0, r:0.1 };
+    this.spawnTime = performance.now();
+    this.state = 'idle';
+    this.hp = 1.0;
+    this._build();
+  }
+  _build(){
+    // sprite
+    const tex = this.opts.texture;
+    if(tex){
+      const aspect = (tex.image && tex.image.width) ? (tex.image.width / tex.image.height) : 1;
+      const targetHeight = THREE.MathUtils.clamp(this.height * 1.4, 0.25, 1.4);
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, alphaTest: 0.05, depthWrite:false });
+      this.sprite = new THREE.Sprite(mat);
+      this.sprite.scale.set(targetHeight*aspect, targetHeight, 1);
+      this.sprite.position.y = targetHeight*0.5;
+      this.group.add(this.sprite);
+      this._spriteH = targetHeight;
+    }
+    // shadow
+    const shGeo = new THREE.CircleGeometry(0.18, 32);
+    const shMat = new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.45 });
+    this.shadow = new THREE.Mesh(shGeo, shMat);
+    this.shadow.rotation.x = -Math.PI/2;
+    this.shadow.position.y = 0.002;
+    this.group.add(this.shadow);
+    // type aura (ring)
+    const auraC = this._typeColor();
+    const ringGeo = new THREE.RingGeometry(0.22, 0.28, 48);
+    const ringMat = new THREE.MeshBasicMaterial({ color:auraC, transparent:true, opacity:0.65, side:THREE.DoubleSide });
+    this.aura = new THREE.Mesh(ringGeo, ringMat);
+    this.aura.rotation.x = -Math.PI/2;
+    this.aura.position.y = 0.005;
+    this.group.add(this.aura);
+    // nameplate
+    this.nameSprite = this._makeNameSprite();
+    this.nameSprite.position.y = (this._spriteH||0.5) + 0.22;
+    this.group.add(this.nameSprite);
+    // hp bar
+    this.hpBar = this._makeHpBar();
+    this.hpBar.position.y = (this._spriteH||0.5) + 0.08;
+    this.group.add(this.hpBar);
+    // particles by type
+    this.particles = this._makeParticles(auraC);
+    this.group.add(this.particles);
+
+    this.scene.add(this.group);
+  }
+  _typeColor(){
+    const map = {
+      fire:0xee8130, water:0x6390f0, electric:0xf7d02c, grass:0x7ac74c, ice:0x96d9d6,
+      fighting:0xc22e28, poison:0xa33ea1, ground:0xe2bf65, flying:0xa98ff3,
+      psychic:0xf95587, bug:0xa6b91a, rock:0xb6a136, ghost:0x735797, dragon:0x6f35fc,
+      dark:0x705746, steel:0xb7b7ce, fairy:0xd685ad, normal:0xa8a77a
+    };
+    return map[this.types[0]] || 0x9aaedd;
+  }
+  _makeNameSprite(){
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = 'rgba(5,8,16,0.85)';
+    roundRect(ctx, 80, 20, 352, 88, 24); ctx.fill();
+    ctx.strokeStyle = 'rgba(77,227,255,0.55)'; ctx.lineWidth = 3;
+    roundRect(ctx, 80, 20, 352, 88, 24); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = '700 44px "Space Grotesk", sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    const name = (this.pokemon.name||'?').toUpperCase();
+    ctx.fillText(name, 256, 64);
+    ctx.fillStyle = 'rgba(77,227,255,0.85)'; ctx.font = '500 22px "JetBrains Mono", monospace';
+    ctx.fillText('#'+String(this.pokemon.id||0).padStart(3,'0'), 256, 100);
+    const tex = new THREE.CanvasTexture(c);
+    const mat = new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false });
+    const s = new THREE.Sprite(mat);
+    s.scale.set(0.7, 0.18, 1);
+    return s;
+  }
+  _makeHpBar(){
+    const c = document.createElement('canvas'); c.width=200; c.height=20;
+    this.hpCanvas = c;
+    this._drawHp(1.0);
+    const tex = new THREE.CanvasTexture(c);
+    this.hpTex = tex;
+    const mat = new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false });
+    const s = new THREE.Sprite(mat);
+    s.scale.set(0.6, 0.06, 1);
+    return s;
+  }
+  _drawHp(v){
+    const ctx = this.hpCanvas.getContext('2d');
+    ctx.clearRect(0,0,200,20);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; roundRect(ctx,0,4,200,12,6); ctx.fill();
+    const grad = ctx.createLinearGradient(0,0,200,0);
+    grad.addColorStop(0,'#5EFFB1'); grad.addColorStop(0.5,'#4DE3FF'); grad.addColorStop(1,'#B080FF');
+    ctx.fillStyle = grad;
+    roundRect(ctx, 2, 6, 196*Math.max(0,Math.min(1,v)), 8, 4); ctx.fill();
+  }
+  setHp(v){ this.hp = v; this._drawHp(v); if(this.hpTex) this.hpTex.needsUpdate = true; }
+  _makeParticles(color){
+    const N = 24;
+    const g = new THREE.BufferGeometry();
+    const pos = new Float32Array(N*3);
+    for(let i=0;i<N;i++){
+      const a = Math.random()*Math.PI*2;
+      const r = 0.25 + Math.random()*0.2;
+      pos[i*3] = Math.cos(a)*r;
+      pos[i*3+1] = Math.random()*0.4;
+      pos[i*3+2] = Math.sin(a)*r;
+    }
+    g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    const m = new THREE.PointsMaterial({ color, size:0.03, transparent:true, opacity:0.9, depthWrite:false, blending:THREE.AdditiveBlending });
+    return new THREE.Points(g, m);
+  }
+  jump(){
+    this.body.vy = 1.6;
+    this.body.vx = (Math.random()-0.5)*0.6;
+    this.body.vz = (Math.random()-0.5)*0.6;
+    this.state = 'jump';
+  }
+  hitFlash(){
+    this.state = 'hit'; this._flashEnd = performance.now()+220;
+  }
+  shake(){
+    this.state = 'shake'; this._shakeEnd = performance.now()+400;
+  }
+  flee(){ this.state='flee'; this.body.vy = 2.2; this.body.vx = (Math.random()-0.5)*3; this.body.vz = (Math.random()-0.5)*3; }
+  setPosition(x,y,z){ this.body.x=x; this.body.y=y; this.body.z=z; this.group.position.set(x,y,z); }
+  update(dt, props, physics){
+    physics.step(this.body, dt, props||[]);
+    // idle bob
+    const t = (performance.now() - this.spawnTime)*0.001;
+    const bob = (this.state==='idle') ? Math.sin(t*3.2)*0.025 : 0;
+    this.group.position.set(this.body.x, this.body.y + bob, this.body.z);
+
+    // shadow follows ground projection
+    this.shadow.position.set(0, 0.002 - this.body.y, 0);
+    const shScale = Math.max(0.3, 1 - this.body.y*0.6);
+    this.shadow.scale.set(shScale, shScale, 1);
+
+    // aura pulse
+    if(this.aura){
+      this.aura.position.set(0, 0.005 - this.body.y, 0);
+      this.aura.scale.setScalar(1 + Math.sin(t*2.5)*0.08);
+      this.aura.material.opacity = 0.4 + Math.sin(t*3)*0.2;
+    }
+    // shake
+    if(this.state==='shake'){
+      this.sprite.position.x = (Math.random()-0.5)*0.06;
+      if(performance.now()>this._shakeEnd){ this.state='idle'; this.sprite.position.x=0; }
+    }
+    // hit flash
+    if(this.state==='hit'){
+      this.sprite.material.color.setHex(0xff5e7a);
+      if(performance.now()>this._flashEnd){ this.sprite.material.color.setHex(0xffffff); this.state='idle'; }
+    }
+    // particles rotate
+    this.particles.rotation.y += dt*0.6;
+  }
+  removeFromScene(){ this.scene.remove(this.group); this.group.traverse(o=>{ o.geometry?.dispose?.(); o.material?.dispose?.(); }); }
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+/* ========================================================
+   CaptureSystem — chance + animation + inventory storage
+   ======================================================== */
+class CaptureSystem{
+  constructor(){
+    this.lsKey = 'pae:caught:v1';
+    this.list = this._load();
+  }
+  _load(){
+    try{ return JSON.parse(localStorage.getItem(this.lsKey)||'[]'); }catch{ return []; }
+  }
+  _save(){ try{ localStorage.setItem(this.lsKey, JSON.stringify(this.list)); }catch{} }
+  calculateChance(pokemon, reticleDist=0.1){
+    const stats = pokemon.stats || [];
+    const hp = stats.find(s=>s.stat.name==='hp')?.base_stat || 60;
+    const w  = (pokemon.weight||50);
+    const rare = (pokemon.base_experience||80);
+    // base 0..1; higher hp/weight/exp -> harder
+    let p = 0.85 - (hp*0.0024) - (w*0.0008) - (rare*0.0014) - Math.min(reticleDist,1)*0.2;
+    return Math.max(0.08, Math.min(0.92, p));
+  }
+  add(pokemon, meta){
+    this.list.unshift({
+      id: pokemon.id, name: pokemon.name,
+      sprite: meta.sprite,
+      types: pokemon.types?.map(t=>t.type.name) || [],
+      gen: meta.gen, region: meta.region,
+      date: Date.now(), shiny: !!meta.shiny
+    });
+    if(this.list.length > 48) this.list.length = 48;
+    this._save();
+  }
+  clear(){ this.list = []; this._save(); }
+}
+
+/* ========================================================
+   HeroScene — floating islands, sprites, holo grid
+   ======================================================== */
+class HeroScene{
+  constructor(canvas){
+    this.canvas = canvas;
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    this.scene = new THREE.Scene();
+    this.scene.fog = new THREE.Fog(0x05070E, 6, 14);
+    this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    this.camera.position.set(0, 1.6, 5);
+
+    this._mouse = {x:0,y:0};
+    this._build();
+    this._resize();
+    new ResizeObserver(()=>this._resize()).observe(canvas);
+    this.renderer.setAnimationLoop((t)=>this._tick(t));
+    canvas.addEventListener('mousemove', e=>{
+      const r = canvas.getBoundingClientRect();
+      this._mouse.x = ((e.clientX-r.left)/r.width)*2 -1;
+      this._mouse.y = ((e.clientY-r.top)/r.height)*2 -1;
+    });
+  }
+  _build(){
+    // lights
+    this.scene.add(new THREE.AmbientLight(0xb0c8ff, 0.6));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.6); dl.position.set(3,5,2); this.scene.add(dl);
+    const pl = new THREE.PointLight(0x4DE3FF, 1.5, 12); pl.position.set(0,1,3); this.scene.add(pl);
+    const pl2 = new THREE.PointLight(0xB080FF, 1.2, 12); pl2.position.set(-3,2,-1); this.scene.add(pl2);
+
+    // holo grid floor
+    const gridGeo = new THREE.PlaneGeometry(20, 20, 30, 30);
+    const gridMat = new THREE.ShaderMaterial({
+      uniforms:{ uTime:{value:0} },
+      transparent:true,
+      vertexShader:`varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);} `,
+      fragmentShader:`
+        varying vec2 vUv; uniform float uTime;
+        void main(){
+          vec2 g = abs(fract(vUv*30.0)-0.5);
+          float l = smoothstep(0.48,0.5, max(g.x,g.y));
+          float d = distance(vUv, vec2(0.5));
+          float fade = smoothstep(0.6, 0.0, d);
+          float pulse = 0.5 + 0.5*sin(uTime*0.6 + d*8.0);
+          vec3 col = mix(vec3(0.07,0.4,0.6), vec3(0.4,0.25,0.7), pulse);
+          gl_FragColor = vec4(col, l*fade*0.5);
+        }`
+    });
+    this.grid = new THREE.Mesh(gridGeo, gridMat);
+    this.grid.rotation.x = -Math.PI/2;
+    this.grid.position.y = -0.8;
+    this.scene.add(this.grid);
+
+    // floating islands
+    this.islands = [];
+    const regions = [
+      { name:'KANTO', color:0x4DE3FF, x:-1.5, y:0.4, z:-0.5 },
+      { name:'JOHTO', color:0xB080FF, x:1.5,  y:0.9, z:-1   },
+      { name:'HOENN', color:0x5EFFB1, x:0,    y:1.6, z:-2   },
+      { name:'SINNOH', color:0xFFB54D, x:-2.3, y:1.7, z:-2.5 },
+      { name:'UNOVA', color:0xFF5E9C, x:2.4,  y:0.0, z:-2 },
+    ];
+    regions.forEach(r=>{
+      const island = new THREE.Group();
+      const baseGeo = new THREE.CylinderGeometry(0.5, 0.25, 0.18, 7);
+      const baseMat = new THREE.MeshStandardMaterial({ color:0x12182E, roughness:0.6, metalness:0.2 });
+      const base = new THREE.Mesh(baseGeo, baseMat); island.add(base);
+
+      const ringGeo = new THREE.TorusGeometry(0.6, 0.012, 8, 64);
+      const ringMat = new THREE.MeshBasicMaterial({ color:r.color, transparent:true, opacity:0.85 });
+      const ring = new THREE.Mesh(ringGeo, ringMat); ring.rotation.x = Math.PI/2;
+      ring.position.y = 0.0; island.add(ring);
+
+      // tiny pillars
+      for(let i=0;i<3;i++){
+        const c = new THREE.Mesh(
+          new THREE.BoxGeometry(0.06, 0.18+Math.random()*0.2, 0.06),
+          new THREE.MeshStandardMaterial({ color:r.color, emissive:r.color, emissiveIntensity:0.5 })
+        );
+        c.position.set(Math.cos(i*2)*0.2, 0.18, Math.sin(i*2)*0.2);
+        island.add(c);
+      }
+
+      island.position.set(r.x, r.y, r.z);
+      island.userData = r;
+      this.scene.add(island);
+      this.islands.push(island);
+    });
+
+    // particle field
+    const N = 220;
+    const partGeo = new THREE.BufferGeometry();
+    const pos = new Float32Array(N*3);
+    const col = new Float32Array(N*3);
+    for(let i=0;i<N;i++){
+      pos[i*3]   = (Math.random()-0.5)*8;
+      pos[i*3+1] = Math.random()*5 - 0.5;
+      pos[i*3+2] = (Math.random()-0.5)*6 - 1;
+      const c = Math.random()>0.5? [0.3,0.9,1.0] : [0.7,0.5,1.0];
+      col[i*3]=c[0]; col[i*3+1]=c[1]; col[i*3+2]=c[2];
+    }
+    partGeo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    partGeo.setAttribute('color', new THREE.BufferAttribute(col,3));
+    const partMat = new THREE.PointsMaterial({ size:0.04, vertexColors:true, transparent:true, opacity:0.85, blending:THREE.AdditiveBlending, depthWrite:false });
+    this.particles = new THREE.Points(partGeo, partMat);
+    this.scene.add(this.particles);
+
+    // central crystal cluster
+    const cluster = new THREE.Group();
+    for(let i=0;i<5;i++){
+      const g = new THREE.IcosahedronGeometry(0.18 + Math.random()*0.1, 0);
+      const m = new THREE.MeshStandardMaterial({
+        color: [0x4DE3FF, 0xB080FF, 0x5EFFB1][i%3],
+        emissive: [0x4DE3FF, 0xB080FF, 0x5EFFB1][i%3],
+        emissiveIntensity: 0.5,
+        metalness: 0.6, roughness: 0.2,
+        transparent:true, opacity:0.85
+      });
+      const c = new THREE.Mesh(g,m);
+      c.position.set((Math.random()-0.5)*0.6, 0.6 + Math.random()*0.3, (Math.random()-0.5)*0.4);
+      cluster.add(c);
+    }
+    this.cluster = cluster;
+    this.scene.add(cluster);
+  }
+  _resize(){
+    const r = this.canvas.getBoundingClientRect();
+    this.renderer.setSize(r.width, r.height, false);
+    this.camera.aspect = r.width / r.height;
+    this.camera.updateProjectionMatrix();
+  }
+  _tick(t){
+    const s = t*0.001;
+    this.grid.material.uniforms.uTime.value = s;
+    this.particles.rotation.y = s*0.05;
+    this.cluster.rotation.y = s*0.4;
+    this.cluster.children.forEach((c,i)=>{ c.rotation.x = s*(0.3+i*0.1); c.position.y = 0.6 + Math.sin(s*1.2 + i)*0.08; });
+    this.islands.forEach((isl,i)=>{
+      isl.position.y = isl.userData.y + Math.sin(s*0.8 + i)*0.1;
+      isl.rotation.y = s*0.2 + i;
+    });
+    // camera parallax
+    const tx = this._mouse.x*0.4, ty = -this._mouse.y*0.3;
+    this.camera.position.x += (tx - this.camera.position.x)*0.04;
+    this.camera.position.y += (1.6 + ty - this.camera.position.y)*0.04;
+    this.camera.lookAt(0, 0.6, -1);
+    this.renderer.render(this.scene, this.camera);
+  }
+}
+
+/* ========================================================
+   StageScene — handles both fallback 3D + WebXR AR
+   ======================================================== */
+class StageScene{
+  constructor(canvas){
+    this.canvas = canvas;
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    this.renderer.xr.enabled = true;
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(60, 1, 0.05, 60);
+    this.camera.position.set(0, 1.5, 3);
+
+    this.physics = new SimplePhysics({ groundY:0, bounds:2 });
+    this.creature = null;
+    this.props = [];
+    this.creatureProps = []; // physics colliders mirror
+    this.showColliders = false;
+    this.showMesh = true;
+    this.occlusion = false;
+    this.mode = 'fallback'; // 'ar' when in XR
+    this.reticle = null;
+    this.hitTestSource = null;
+    this.hitTestSourceRequested = false;
+
+    this._build();
+    this._resize();
+    new ResizeObserver(()=>this._resize()).observe(canvas);
+    this.renderer.setAnimationLoop((t,frame)=>this._tick(t,frame));
+
+    this.clock = new THREE.Clock();
+    // fallback orbit
+    this.controls = new OrbitControls(this.camera, canvas);
+    this.controls.target.set(0, 0.4, 0);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.08;
+    this.controls.minDistance = 1.5; this.controls.maxDistance = 6;
+    this.controls.maxPolarAngle = Math.PI*0.49;
+    this.controls.update();
+
+    canvas.addEventListener('click', (e)=> this._onCanvasClick(e));
+  }
+  _build(){
+    // lights
+    this.scene.add(new THREE.AmbientLight(0xb0c8ff, 0.55));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.6); dl.position.set(2,5,2); this.scene.add(dl);
+    const pl = new THREE.PointLight(0x4DE3FF, 1.0, 8); pl.position.set(0,2,1); this.scene.add(pl);
+    const pl2 = new THREE.PointLight(0xB080FF, 0.8, 8); pl2.position.set(-2,2,-2); this.scene.add(pl2);
+
+    this.world = new THREE.Group();
+    this.scene.add(this.world);
+
+    // ground (fallback)
+    const grGeo = new THREE.PlaneGeometry(8, 8, 1, 1);
+    const grMat = new THREE.MeshBasicMaterial({ color:0x0a1124, transparent:true, opacity:0.7 });
+    this.ground = new THREE.Mesh(grGeo, grMat);
+    this.ground.rotation.x = -Math.PI/2;
+    this.ground.position.y = 0;
+    this.world.add(this.ground);
+
+    // animated mesh grid on ground
+    const gridGeo = new THREE.PlaneGeometry(4, 4);
+    const gridMat = new THREE.ShaderMaterial({
+      uniforms:{ uTime:{value:0}, uOpacity:{value:1.0} },
+      transparent:true,
+      vertexShader:`varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+      fragmentShader:`
+        varying vec2 vUv; uniform float uTime; uniform float uOpacity;
+        void main(){
+          vec2 g = abs(fract(vUv*16.0)-0.5);
+          float l = smoothstep(0.46,0.5, max(g.x,g.y));
+          float d = distance(vUv, vec2(0.5));
+          float ring = smoothstep(0.02, 0.0, abs(d - mod(uTime*0.15, 0.5)));
+          float fade = smoothstep(0.7, 0.0, d);
+          vec3 col = mix(vec3(0.1,0.6,0.85), vec3(0.5,0.3,0.95), 0.5+0.5*sin(uTime));
+          gl_FragColor = vec4(col, (l*0.55 + ring*0.4)*fade*uOpacity);
+        }`
+    });
+    this.gridMesh = new THREE.Mesh(gridGeo, gridMat);
+    this.gridMesh.rotation.x = -Math.PI/2;
+    this.gridMesh.position.y = 0.002;
+    this.world.add(this.gridMesh);
+
+    // props
+    this._buildProps();
+
+    // reticle for AR
+    const retGeo = new THREE.RingGeometry(0.12, 0.16, 32).rotateX(-Math.PI/2);
+    const retMat = new THREE.MeshBasicMaterial({ color:0x4DE3FF, transparent:true, opacity:0.95, side:THREE.DoubleSide });
+    this.reticle = new THREE.Mesh(retGeo, retMat);
+    this.reticle.matrixAutoUpdate = false;
+    this.reticle.visible = false;
+    this.scene.add(this.reticle);
+    // ring pulse
+    const retInner = new THREE.Mesh(new THREE.RingGeometry(0.04,0.06,32).rotateX(-Math.PI/2),
+      new THREE.MeshBasicMaterial({ color:0xB080FF, transparent:true, opacity:0.95, side:THREE.DoubleSide }));
+    this.reticle.add(retInner);
+    this.reticleInner = retInner;
+
+    // controller select for AR
+    this.controller = this.renderer.xr.getController(0);
+    this.controller.addEventListener('select', ()=>this._onARSelect());
+    this.scene.add(this.controller);
+
+    // fake back wall
+    const wallGeo = new THREE.PlaneGeometry(8, 4);
+    const wallMat = new THREE.MeshBasicMaterial({ color:0x0e152a, transparent:true, opacity:0.4 });
+    this.wall = new THREE.Mesh(wallGeo, wallMat);
+    this.wall.position.set(0, 1.5, -3);
+    this.world.add(this.wall);
+  }
+  _buildProps(){
+    // 5 grass, 3 rock, 2 bush, 1 portal, 1 sign, scattered
+    const palette = { grass:0x5EFFB1, rock:0x7a8aa8, bush:0x4DE3FF, sign:0xB080FF, portal:0xFF5E9C };
+    const propSpec = [
+      ...Array.from({length:8},()=>({ type:'grass', r:0.08, h:0.18 })),
+      ...Array.from({length:4},()=>({ type:'rock',  r:0.16, h:0.22 })),
+      ...Array.from({length:3},()=>({ type:'bush',  r:0.18, h:0.28 })),
+      { type:'portal', r:0.3, h:0.02 },
+      { type:'sign',   r:0.1, h:0.4 },
+    ];
+    this.propGroup = new THREE.Group();
+    this.world.add(this.propGroup);
+    this.props = [];
+    for(const p of propSpec){
+      const x = (Math.random()-0.5)*3.4;
+      const z = (Math.random()-0.5)*3.4;
+      // keep away from center
+      if(p.type!=='portal' && Math.hypot(x,z)<0.5) continue;
+      const px = p.type==='portal'? 0 : x;
+      const pz = p.type==='portal'? 0 : z;
+      let mesh;
+      switch(p.type){
+        case 'grass':{
+          const g = new THREE.Group();
+          for(let i=0;i<4;i++){
+            const blade = new THREE.Mesh(
+              new THREE.PlaneGeometry(0.04, 0.18),
+              new THREE.MeshBasicMaterial({ color:0x5EFFB1, side:THREE.DoubleSide, transparent:true, opacity:0.8 })
+            );
+            blade.position.y = 0.09;
+            blade.rotation.y = i*Math.PI/2;
+            g.add(blade);
+          }
+          mesh = g; break;
+        }
+        case 'rock':{
+          mesh = new THREE.Mesh(
+            new THREE.IcosahedronGeometry(0.12 + Math.random()*0.06, 0),
+            new THREE.MeshStandardMaterial({ color:0x7a8aa8, roughness:0.9, metalness:0.2 })
+          );
+          mesh.position.y = 0.1; break;
+        }
+        case 'bush':{
+          mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.18, 12, 12),
+            new THREE.MeshStandardMaterial({ color:0x2c8553, emissive:0x114b2a, emissiveIntensity:0.2, roughness:0.8 })
+          );
+          mesh.position.y = 0.18; break;
+        }
+        case 'portal':{
+          mesh = new THREE.Mesh(
+            new THREE.TorusGeometry(0.4, 0.02, 12, 64),
+            new THREE.MeshBasicMaterial({ color:0xB080FF, transparent:true, opacity:0.85 })
+          );
+          mesh.rotation.x = -Math.PI/2;
+          mesh.position.y = 0.01; break;
+        }
+        case 'sign':{
+          const g = new THREE.Group();
+          const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,0.4), new THREE.MeshStandardMaterial({color:0x7a8aa8}));
+          pole.position.y = 0.2; g.add(pole);
+          const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.25,0.16), new THREE.MeshBasicMaterial({color:0xB080FF, side:THREE.DoubleSide}));
+          plate.position.set(0, 0.34, 0); g.add(plate);
+          mesh = g; break;
+        }
+      }
+      mesh.position.x = px; mesh.position.z = pz;
+      this.propGroup.add(mesh);
+      // collider visualization
+      const colVizGeo = new THREE.CylinderGeometry(p.r, p.r, p.h, 12);
+      const colVizMat = new THREE.MeshBasicMaterial({ color:0xff5e7a, wireframe:true, transparent:true, opacity:0.6 });
+      const colViz = new THREE.Mesh(colVizGeo, colVizMat);
+      colViz.position.set(px, p.h/2, pz);
+      colViz.visible = false;
+      this.propGroup.add(colViz);
+      this.props.push({ x:px, z:pz, r:p.r, h:p.h, type:p.type, mesh, colViz });
+    }
+  }
+  _resize(){
+    const r = this.canvas.getBoundingClientRect();
+    this.renderer.setSize(r.width, r.height, false);
+    this.camera.aspect = r.width / r.height;
+    this.camera.updateProjectionMatrix();
+  }
+  toggleColliders(){
+    this.showColliders = !this.showColliders;
+    this.props.forEach(p=>p.colViz.visible = this.showColliders);
+    return this.showColliders;
+  }
+  toggleMesh(){
+    this.showMesh = !this.showMesh;
+    this.gridMesh.material.uniforms.uOpacity.value = this.showMesh? 1.0 : 0.0;
+    return this.showMesh;
+  }
+  toggleOcclusion(){
+    this.occlusion = !this.occlusion;
+    // when on, ensure props depth test occludes sprite
+    if(this.creature?.sprite){
+      this.creature.sprite.material.depthTest = this.occlusion;
+      this.creature.sprite.material.needsUpdate = true;
+    }
+    return this.occlusion;
+  }
+  setMode(m){
+    this.mode = m;
+    // hide controls in AR
+    this.controls.enabled = (m==='fallback');
+    this.gridMesh.visible = (m==='fallback');
+    this.ground.visible   = (m==='fallback');
+    this.wall.visible     = (m==='fallback');
+    this.reticle.visible  = (m==='ar');
+  }
+  placeCreatureAt(x,y,z){
+    if(this.creature) this.creature.setPosition(x,y,z);
+  }
+  setCreature(pokemon, texture, opts={}){
+    if(this.creature){ this.creature.removeFromScene(); this.creature = null; }
+    this.creature = new CreatureSprite(this.world, pokemon, { texture, ...opts });
+    this.creature.setPosition(0, 0.3, 0);
+    this.creature.body.vy = 1.2;
+    // schedule periodic hops
+    return this.creature;
+  }
+  _onCanvasClick(e){
+    if(this.mode==='ar') return;
+    if(!this.creature) return;
+    // raycast onto ground
+    const r = this.canvas.getBoundingClientRect();
+    const mx = ((e.clientX-r.left)/r.width)*2 -1;
+    const my = -((e.clientY-r.top)/r.height)*2 +1;
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2(mx,my), this.camera);
+    const hits = ray.intersectObject(this.ground);
+    if(hits.length){
+      const p = hits[0].point;
+      this.creature.body.vy = 1.6;
+      this.creature.body.x = p.x; this.creature.body.z = p.z;
+    }
+  }
+  _onARSelect(){
+    if(!this.reticle.visible) return;
+    if(this.creature){
+      const m = new THREE.Matrix4().fromArray(this.reticle.matrix.elements);
+      const pos = new THREE.Vector3().setFromMatrixPosition(m);
+      this.creature.body.x = pos.x; this.creature.body.y = pos.y + 0.05; this.creature.body.z = pos.z;
+      this.creature.body.vy = 1.2;
+    }
+  }
+  async startAR(onState){
+    if(!navigator.xr){ onState('unavailable'); return false; }
+    try{
+      const supported = await navigator.xr.isSessionSupported('immersive-ar');
+      if(!supported){ onState('unavailable'); return false; }
+      const sess = await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures:['hit-test'],
+        optionalFeatures:['dom-overlay','anchors','light-estimation'],
+        domOverlay:{ root: document.body }
+      });
+      await this.renderer.xr.setSession(sess);
+      this.setMode('ar');
+      onState('searching');
+      sess.addEventListener('end', ()=>{ this.setMode('fallback'); onState('ended'); this.hitTestSource = null; this.hitTestSourceRequested = false; });
+      return true;
+    }catch(err){
+      console.warn('[xr]', err);
+      onState('error');
+      return false;
+    }
+  }
+  _tick(t, frame){
+    const dt = Math.min(0.05, this.clock.getDelta());
+    if(this.gridMesh) this.gridMesh.material.uniforms.uTime.value = t*0.001;
+    // sign rotate
+    this.props.forEach(p=>{
+      if(p.type==='sign') p.mesh.rotation.y += dt*0.4;
+      if(p.type==='portal') p.mesh.rotation.z += dt*0.6;
+      if(p.type==='grass'){ p.mesh.rotation.y = Math.sin(t*0.001 + p.x)*0.2; }
+    });
+    // reticle pulse
+    if(this.reticleInner) this.reticleInner.rotation.z = t*0.002;
+
+    // AR hit-test
+    if(this.renderer.xr.isPresenting && frame){
+      const refSpace = this.renderer.xr.getReferenceSpace();
+      const session  = this.renderer.xr.getSession();
+      if(!this.hitTestSourceRequested){
+        this.hitTestSourceRequested = true;
+        session.requestReferenceSpace('viewer').then(viewerSpace=>{
+          session.requestHitTestSource({ space:viewerSpace }).then(src=>{ this.hitTestSource = src; });
+        });
+      }
+      if(this.hitTestSource){
+        const hits = frame.getHitTestResults(this.hitTestSource);
+        if(hits.length){
+          const pose = hits[0].getPose(refSpace);
+          this.reticle.visible = true;
+          this.reticle.matrix.fromArray(pose.transform.matrix);
+        }else{
+          this.reticle.visible = false;
+        }
+      }
+    }
+    if(this.creature){
+      this.creature.update(dt, this.props, this.physics);
+      // occasional idle hop
+      if(this.creature.state==='idle' && Math.random()<0.005 && this.creature.body.y < 0.15){
+        this.creature.jump();
+        window.__audio?.playSfx('jump');
+      }
+    }
+    if(this.controls) this.controls.update();
+    this.renderer.render(this.scene, this.camera);
+  }
+}
+
+/* ========================================================
+   App glue
+   ======================================================== */
+const api    = new APIService();
+const audio  = new AudioManager();
+const captor = new CaptureSystem();
+window.__audio = audio;
+
+const state = {
+  generation: null,
+  region: null,
+  type: null,
+  spriteStyle: 'showdown',
+  shiny: false,
+  cryOnSpawn: true,
+  currentPokemon: null,
+  currentMeta: null,
+};
+
+const $ = (id)=>document.getElementById(id);
+const showToast = (msg, cls='')=>{
+  const t = $('toast');
+  t.className = 'toast show ' + cls;
+  t.textContent = msg;
+  clearTimeout(t._tid);
+  t._tid = setTimeout(()=>{ t.classList.remove('show'); }, 1600);
+};
+const setState = (label, cls='')=>{
+  $('state-label').textContent = label;
+  const pill = $('stage-state');
+  pill.classList.remove('warn','ok');
+  if(cls) pill.classList.add(cls);
+};
+
+// instantiate scenes
+const hero  = new HeroScene($('hero-canvas'));
+const stage = new StageScene($('ar-canvas'));
+
+// ------ WebXR support check ------
+(async ()=>{
+  setState('CHECKING WEBXR…');
+  if(navigator.xr){
+    try{
+      const ok = await navigator.xr.isSessionSupported('immersive-ar');
+      if(ok){
+        $('s-webxr').innerHTML = '<span style="color:var(--green)">supported</span>';
+        $('mode-label').textContent = 'WEBXR READY';
+        setState('TAP “START AR” TO BEGIN', 'ok');
+      }else{
+        $('s-webxr').innerHTML = '<span style="color:var(--amber)">unsupported</span>';
+        $('mode-label').textContent = '3D FALLBACK';
+        setState('FALLBACK 3D ACTIVE', 'warn');
+        $('s-surf').textContent = 'simulated grid';
+      }
+    }catch(e){
+      $('s-webxr').textContent = 'error';
+      setState('FALLBACK 3D ACTIVE', 'warn');
+    }
+  }else{
+    $('s-webxr').innerHTML = '<span style="color:var(--amber)">not in browser</span>';
+    setState('FALLBACK 3D ACTIVE', 'warn');
+    $('s-surf').textContent = 'simulated grid';
+  }
+  $('s-ret').textContent = 'idle';
+})();
+
+// ------ Generations / Regions / Types load ------
+async function loadFilters(){
+  const [gens, regs] = await Promise.all([api.getAllGenerations(), api.getAllRegions()]);
+  const types = [
+    'normal','fire','water','electric','grass','ice','fighting','poison','ground',
+    'flying','psychic','bug','rock','ghost','dragon','dark','steel','fairy'
+  ];
+  // Generations
+  const gEl = $('gens'); gEl.innerHTML = '';
+  (gens?.results||[]).forEach((g,i)=>{
+    const id = g.url.split('/').filter(Boolean).pop();
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.dataset.gen = id;
+    chip.innerHTML = `<span class="sm">GEN</span><span>${(g.name||'').replace('generation-','').toUpperCase()}</span>`;
+    chip.addEventListener('click', ()=>{
+      audio.playSfx('select');
+      gEl.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      if(state.generation == id){ state.generation = null; }
+      else{ state.generation = id; chip.classList.add('active'); }
+    });
+    gEl.appendChild(chip);
+  });
+  $('gen-count').textContent = (gens?.results?.length || 0) + ' GENS';
+
+  // Regions
+  const rEl = $('regs'); rEl.innerHTML = '';
+  const regionNames = [];
+  (regs?.results||[]).forEach((r,i)=>{
+    regionNames.push(r.name.toUpperCase());
+    const id = r.url.split('/').filter(Boolean).pop();
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.dataset.reg = id;
+    chip.innerHTML = `<span class="sm">REG</span><span>${r.name.toUpperCase()}</span>`;
+    chip.addEventListener('click', ()=>{
+      audio.playSfx('select');
+      rEl.querySelectorAll('.chip').forEach(c=>c.classList.remove('active','purple'));
+      if(state.region == id){ state.region = null; }
+      else{ state.region = id; chip.classList.add('active','purple'); }
+    });
+    rEl.appendChild(chip);
+  });
+  $('reg-count').textContent = (regs?.results?.length || 0) + ' REGIONS';
+  $('hero-region-tag').textContent = regionNames.slice(0,6).join(' · ') + (regionNames.length>6 ? ' · …' : '');
+
+  // Types
+  const tEl = $('types'); tEl.innerHTML = '';
+  types.forEach(t=>{
+    const chip = document.createElement('div');
+    chip.className = 'chip t-'+t;
+    chip.dataset.type = t;
+    chip.textContent = t;
+    chip.addEventListener('click', ()=>{
+      audio.playSfx('click');
+      tEl.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      if(state.type == t){ state.type = null; }
+      else{ state.type = t; chip.classList.add('active'); }
+    });
+    tEl.appendChild(chip);
+  });
+  updateCache();
+}
+function updateCache(){
+  $('s-cache').textContent = api.mem.size + ' entries';
+}
+
+loadFilters();
+
+// ------ Toggles & buttons ------
+$('tog-shiny').addEventListener('click', e=>{
+  e.currentTarget.classList.toggle('on');
+  state.shiny = e.currentTarget.classList.contains('on');
+  audio.playSfx('click');
+});
+$('tog-cry').addEventListener('click', e=>{
+  e.currentTarget.classList.toggle('on');
+  state.cryOnSpawn = e.currentTarget.classList.contains('on');
+  audio.playSfx('click');
+});
+$('sprite-style').addEventListener('change', e=>{ state.spriteStyle = e.target.value; });
+
+$('btn-music').addEventListener('click', ()=>{
+  const on = audio.toggleMusic();
+  $('btn-music').classList.toggle('on', on);
+});
+$('btn-sfx').addEventListener('click', ()=>{
+  audio.setSfx(!audio.sfxOn);
+  $('btn-sfx').classList.toggle('on', audio.sfxOn);
+});
+
+$('tog-mesh').addEventListener('click', e=>{ const on = stage.toggleMesh(); e.currentTarget.classList.toggle('on', on); audio.playSfx('click'); });
+$('tog-coll').addEventListener('click', e=>{ const on = stage.toggleColliders(); e.currentTarget.classList.toggle('on', on); audio.playSfx('click'); });
+$('tog-occl').addEventListener('click', e=>{ const on = stage.toggleOcclusion(); e.currentTarget.classList.toggle('on', on); audio.playSfx('click'); });
+
+// CTA buttons
+$('cta-ar').addEventListener('click', async ()=>{
+  audio.unlock(); audio.playSfx('scan');
+  setState('REQUESTING WEBXR…');
+  $('s-ret').textContent = 'requesting';
+  const ok = await stage.startAR(s=>{
+    if(s==='unavailable'){ setState('AR UNAVAILABLE · FALLBACK', 'warn'); showToast('WebXR AR not available — fallback active','fail'); $('mode-label').textContent='3D FALLBACK'; }
+    if(s==='searching'){ setState('SEARCHING SURFACE…','warn'); audio.playSfx('scan'); $('mode-label').textContent='WEBXR AR'; $('s-surf').innerHTML='<span style="color:var(--green)">scanning</span>'; }
+    if(s==='ended'){ setState('SESSION ENDED','warn'); $('mode-label').textContent='3D FALLBACK'; }
+    if(s==='error'){ setState('AR ERROR · FALLBACK','warn'); $('mode-label').textContent='3D FALLBACK'; }
+  });
+  document.getElementById('experience').scrollIntoView({ behavior:'smooth', block:'start' });
+});
+$('cta-demo').addEventListener('click', ()=>{
+  audio.unlock();
+  document.getElementById('experience').scrollIntoView({ behavior:'smooth', block:'start' });
+});
+
+// ------ Generate encounter ------
+async function generateEncounter(){
+  audio.unlock();
+  audio.playSfx('scan');
+  setState('ROLLING ENCOUNTER…');
+  $('btn-spawn').innerHTML = '<span class="spinner"></span> Rolling…';
+  const p = await api.getRandomEncounter({
+    generation: state.generation,
+    region: state.region,
+    type: state.type
+  });
+  updateCache();
+  $('btn-spawn').innerHTML = `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M5 19l3-3M16 8l3-3"/></svg> Generate encounter`;
+  if(!p){ setState('API ERROR · TRY AGAIN','warn'); showToast('Encounter failed','fail'); return; }
+  state.currentPokemon = p;
+
+  const spriteUrl = state.shiny ? api.getShinySprite(p, state.spriteStyle) : api.getBestSprite(p, state.spriteStyle);
+  if(!spriteUrl){ showToast('No sprite available','fail'); return; }
+
+  // load texture
+  const tex = await new Promise((resolve)=>{
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin('anonymous');
+    loader.load(spriteUrl,
+      (t)=>{ t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; resolve(t); },
+      undefined,
+      ()=> resolve(null)
+    );
+  });
+  if(!tex){ showToast('Sprite failed to load','fail'); return; }
+
+  const creature = stage.setCreature(p, tex, { shiny: state.shiny });
+  setState('CREATURE ANCHORED', 'ok');
+  $('s-creat').textContent = p.name;
+  audio.playSfx('spawn');
+  showToast(`A wild ${p.name.toUpperCase()} appeared!`, 'success');
+
+  // cry
+  if(state.cryOnSpawn){
+    const cry = api.getCryUrl(p);
+    if(cry){ setTimeout(()=>audio.playCry(cry), 300); }
+    else{ setTimeout(()=>audio.playSfx('spawn'), 300); }
+  }
+
+  // species/region meta for card
+  let speciesData = null;
+  try{
+    if(p.species?.url){
+      const id = p.species.url.split('/').filter(Boolean).pop();
+      speciesData = await api.getSpecies(id);
+    }
+  }catch{}
+  const genName = speciesData?.generation?.name?.replace('generation-','').toUpperCase() || '—';
+  const region = await (async ()=>{
+    if(!speciesData?.generation?.url) return '—';
+    const id = speciesData.generation.url.split('/').filter(Boolean).pop();
+    const g = await api.getGeneration(id);
+    return g?.main_region?.name?.toUpperCase() || '—';
+  })();
+
+  state.currentMeta = { spriteUrl, gen: genName, region };
+  renderCreatureCard(p, { spriteUrl, gen: genName, region });
+  updateCache();
+}
+
+function renderCreatureCard(p, meta){
+  const card = $('creature-card');
+  card.className = 'creature-card';
+  const types = p.types?.map(t=>t.type.name) || [];
+  const stats = p.stats || [];
+  const get = n => stats.find(s=>s.stat.name===n)?.base_stat || 0;
+  const abilities = (p.abilities||[]).map(a=>a.ability.name.replace(/-/g,' ')).slice(0,2).join(', ') || '—';
+
+  card.innerHTML = `
+    <div class="cc-head">
+      <div>
+        <div class="cc-name">${p.name}</div>
+        <div class="cc-num">#${String(p.id).padStart(3,'0')} · GEN ${meta.gen} · ${meta.region}</div>
+      </div>
+      <div class="cc-num" style="text-align:right; color:var(--cyan);">${state.shiny?'SHINY ✦':'NORMAL'}</div>
+    </div>
+    <div class="cc-art">
+      <div class="grid"></div>
+      <img src="${meta.spriteUrl}" alt="${p.name}" style="image-rendering:${state.spriteStyle==='official'||state.spriteStyle==='home'?'auto':'pixelated'};" />
+    </div>
+    <div class="cc-types">
+      ${types.map(t=>`<span class="type" style="background:var(--type-${t})">${t}</span>`).join('')}
+    </div>
+    <div class="cc-meta">
+      <div><div class="k">Height</div><div class="v">${(p.height/10).toFixed(1)} m</div></div>
+      <div><div class="k">Weight</div><div class="v">${(p.weight/10).toFixed(1)} kg</div></div>
+      <div><div class="k">Cry</div><div class="v">${api.getCryUrl(p)?'available':'procedural'}</div></div>
+    </div>
+    <div class="cc-stats">
+      ${[['HP','hp'],['ATK','attack'],['DEF','defense'],['SPD','speed']].map(([lbl,key])=>{
+        const v = get(key);
+        return `<div class="cc-stat"><span class="name">${lbl}</span><div class="bar"><div style="width:${Math.min(100,v/200*100)}%"></div></div><span class="num">${v}</span></div>`;
+      }).join('')}
+      <div class="cc-stat" style="grid-template-columns:90px 1fr;"><span class="name">ABILITIES</span><span style="color:var(--text); text-transform:capitalize; font-size:11px;">${abilities}</span></div>
+    </div>
+  `;
+}
+
+$('btn-spawn').addEventListener('click', generateEncounter);
+$('btn-throw').addEventListener('click', ()=>{
+  audio.playSfx('throw');
+  if(!stage.creature){ showToast('Generate an encounter first', 'fail'); return; }
+  // jitter position
+  const ang = Math.random()*Math.PI*2;
+  const r = 0.4 + Math.random()*0.7;
+  stage.creature.body.x = Math.cos(ang)*r;
+  stage.creature.body.z = Math.sin(ang)*r;
+  stage.creature.body.vy = 1.4;
+  showToast('Placed.', '');
+});
+
+$('btn-capture').addEventListener('click', ()=>{
+  audio.unlock();
+  if(!stage.creature || !state.currentPokemon){
+    showToast('Generate an encounter first','fail');
+    return;
+  }
+  audio.playSfx('throw');
+  const p = state.currentPokemon;
+  const dist = Math.hypot(stage.creature.body.x, stage.creature.body.z);
+  const chance = captor.calculateChance(p, dist);
+
+  // capture animation: shrink + shake
+  const cr = stage.creature;
+  let shakeStep = 0;
+  cr.shake();
+  const shakes = [0,1,2].map(i=>setTimeout(()=>{ cr.shake(); audio.playSfx('shake'); }, 200 + i*350));
+
+  setTimeout(()=>{
+    if(Math.random() < chance){
+      audio.playSfx('capture');
+      showToast(`CAPTURED · ${p.name.toUpperCase()}!`, 'success');
+      captor.add(p, state.currentMeta || { sprite: api.getBestSprite(p, state.spriteStyle), gen:'—', region:'—', shiny:state.shiny });
+      renderInventory();
+      // sparkle then remove
+      cr.aura.material.color.setHex(0x5EFFB1);
+      setTimeout(()=>{ cr.removeFromScene(); stage.creature = null; $('s-creat').textContent='captured'; setState('CAPTURED!','ok'); }, 600);
+    }else{
+      audio.playSfx('escape');
+      showToast('Escaped!', 'fail');
+      cr.flee();
+      setTimeout(()=>{ cr.removeFromScene(); stage.creature = null; $('s-creat').textContent='escaped'; setState('ESCAPED','warn'); }, 800);
+    }
+  }, 1500);
+});
+
+// inventory
+function renderInventory(){
+  const grid = $('inv-grid');
+  grid.innerHTML = '';
+  const list = captor.list;
+  const cells = Math.max(12, Math.ceil(list.length/6)*6);
+  for(let i=0;i<cells;i++){
+    const c = document.createElement('div');
+    const item = list[i];
+    if(item){
+      c.className = 'inv-cell';
+      c.title = `${item.name} · GEN ${item.gen} · ${item.region}`;
+      c.innerHTML = `<img src="${item.sprite}" alt="${item.name}"/><div class="nm">${item.name}</div>`;
+    }else{
+      c.className = 'inv-cell empty';
+      c.textContent = '—';
+    }
+    grid.appendChild(c);
+  }
+}
+renderInventory();
+$('btn-clear').addEventListener('click', ()=>{
+  captor.clear(); renderInventory(); audio.playSfx('click'); showToast('Inventory cleared.','');
+});
+
+// Periodically jump idle creature & subtle effects
+setInterval(()=>{
+  if(stage.creature && stage.creature.state==='idle' && Math.random()<0.6){
+    if(stage.creature.body.y < 0.15) stage.creature.jump();
+  }
+}, 2200);
+
+</script>
+
+</body>
+</html>

@@ -157,6 +157,53 @@ class BattleEngine{
     }
   }
   async _close(verdict){
+    // ---- Restaura mons que sofreram Mega/Dynamax (post-batalha) ----
+    // Iteramos AMBOS os times pra cobrir switch mid-gimmick.
+    // Para mons com base/ivs/evs/nature: recomputeStats e a fonte de verdade
+    // (cobre o caso de mega+level-up na mesma batalha — backup teria stats velhos).
+    // Senao, fallback para o backup direto.
+    const { recomputeStats } = await import('./mon-stats.js');
+    for (const mon of [...this.playerTeam, ...this.enemyTeam]) {
+      if (!mon) continue;
+      const wasMega = !!mon._megaBackup;
+      const wasDyna = !!mon._maxBackup;
+
+      if (wasMega) {
+        mon.types = mon._megaBackup.types;  // tipos voltam
+        delete mon._megaBackup;
+        mon._mega = false;
+      }
+      if (wasDyna) {
+        // restaura HP/maxHp proporcionalmente
+        const ratio = mon.maxHp > 0 ? mon.hp / mon.maxHp : 1;
+        mon.maxHp = mon._maxBackup.maxHp;
+        mon.hp = Math.max(0, Math.min(mon.maxHp, Math.round(mon.maxHp * ratio)));
+        delete mon._maxBackup;
+        mon._dyna = false;
+        mon._gmax = false;
+      }
+      // Re-deriva stats do mon (cobre level-ups ocorridos durante mega/dyna)
+      if ((wasMega || wasDyna) && mon.base && mon.ivs && mon.evs) {
+        const hpRatio = mon.maxHp > 0 ? mon.hp / mon.maxHp : 1;
+        recomputeStats(mon);
+        // se Dyna ja tinha ajustado HP, preserva a proporcao final
+        if (!wasDyna) {
+          mon.hp = Math.max(0, Math.min(mon.maxHp, Math.round(mon.maxHp * hpRatio)));
+        }
+      }
+      // Limpa flags transitorios de batalha
+      delete mon._stages;
+      delete mon._heldData;
+      delete mon._sashUsed;
+      delete mon._sitrusUsed;
+      delete mon._battlePrepped;
+      delete mon._charging;
+      delete mon._confused;
+      delete mon._flinched;
+      delete mon._sleepTurns;
+      delete mon._maxGuard;
+    }
+
     // play any queued level-up evolutions before leaving the battle
     if(this._evoQueue && this._evoQueue.length){
       const { canEvolveByLevel, canEvolveByHeldItem, evolveMon, playEvolution } = await import('./evolution.js');
@@ -660,6 +707,15 @@ class BattleEngine{
       await this._applyStatusMove(attacker, defender, move, attackerIsEnemy);
       return;
     }
+    // ---- FIX #3: Max Guard ----
+    // Dynamax + status move = Max Guard: bloqueia o proximo ataque do oponente
+    // (canonical Gen 8). Substitui o caminho de dano com BP=40 default.
+    if(isMax && isStatus){
+      attacker._maxGuard = true;
+      this.log.push(`${attName} ergueu uma <b>Maxiguarda</b>! O proximo golpe sera bloqueado!`);
+      this._render(); await wait(600);
+      return;
+    }
     // Z-status move: buff the user
     if(isZ && isStatus){
       const z = core.zStatusEffect(move.type);
@@ -677,6 +733,13 @@ class BattleEngine{
     }
 
     // ----- Damage -----
+    // ---- FIX #3: Max Guard bloqueia o ataque (uma vez) ----
+    if(defender._maxGuard){
+      defender._maxGuard = false;
+      this.log.push(`A Maxiguarda de ${(defender.nickname||defender.name).toUpperCase()} bloqueou o ataque!`);
+      this._render(); await wait(600);
+      return;
+    }
     // ability absorptions / immunities
     const absorb = core.abilityAbsorb(defender, move);
     if(absorb && absorb.immune){
@@ -815,6 +878,9 @@ class BattleEngine{
   /* Apply a non-damaging status move: ailments + stat changes + field */
   async _applyStatusMove(attacker, defender, move, attackerIsEnemy){
     const attName = (attacker.nickname||attacker.name).toUpperCase();
+    // ---- FIX #3: Max Guard tambem bloqueia status moves do oponente ----
+    // (selfBuffs setam target=attacker entao nao impactam; tratamos a baixo apenas
+    //  o que MIRA o defender)
     let did = false;
     // terrain
     const ter = core.moveSetsTerrain(move.name);
@@ -839,6 +905,13 @@ class BattleEngine{
     // ailment moves (will-o-wisp, thunder-wave, toxic, sleep-powder…)
     const ail = mapAilment(move.meta?.ailment);
     if(ail){
+      // FIX #3: Max Guard bloqueia status condition no defender
+      if(defender._maxGuard){
+        defender._maxGuard = false;
+        this.log.push(`A Maxiguarda de ${(defender.nickname||defender.name).toUpperCase()} bloqueou!`);
+        this._render(); await wait(550);
+        return;
+      }
       if(!this._accuracyHit(attacker, defender, move)){ this.log.push('Mas errou!'); this._render(); await wait(500); return; }
       if(core.terrainBlocksStatus(this.terrain, ail, core.isGrounded(defender)) || core.abilityStatusImmune(defender, ail)){
         this.log.push('Mas não teve efeito.'); this._render(); await wait(500); return;
@@ -1004,6 +1077,7 @@ class BattleEngine{
 
   async _gainXp(enemy){
     const { xpForLevel } = await import('./data.js');
+    const { recomputeStats } = await import('./mon-stats.js');
     const baseExp = enemy.baseExp || 80;
     const fullGain = Math.max(1, Math.floor((baseExp * enemy.level) / 7));
     // XP Share: the active mon gets full XP; the rest of the (living) party gets half.
@@ -1018,10 +1092,17 @@ class BattleEngine{
       this._render(); await wait(280);
       while(mon.level < 100 && mon.xp >= xpForLevel(mon.level+1)){
         mon.level++;
-        const oldMax = mon.maxHp;
-        const newMax = Math.floor((2*mon.stats.hp + 31) * mon.level / 100) + mon.level + 10;
-        mon.maxHp = newMax;
-        mon.hp = Math.min(mon.maxHp, mon.hp + (newMax - oldMax));
+        // ---- FIX #2: recompute TODOS os stats (atk/def/spa/spd/spe), nao so HP ----
+        // recomputeStats preserva a proporcao de HP atual.
+        if (mon.base && mon.ivs && mon.evs) {
+          recomputeStats(mon);
+        } else {
+          // Fallback para mons antigos sem base/ivs/evs: mantem comportamento antigo (so HP)
+          const oldMax = mon.maxHp;
+          const newMax = Math.floor((2*mon.stats.hp + 31) * mon.level / 100) + mon.level + 10;
+          mon.maxHp = newMax;
+          mon.hp = Math.min(mon.maxHp, mon.hp + (newMax - oldMax));
+        }
         this.log.push(`<b>${(mon.nickname||mon.name).toUpperCase()}</b> subiu para Lv. ${mon.level}!`);
         audio.playSfx('badge');
         this._render(); await wait(620);
@@ -1074,10 +1155,16 @@ class BattleEngine{
     }
     this.lock = true;
     this._render();
-    const pSpeed = this.pMon.stats.speed || 50;
-    const eSpeed = this.eMon.stats.speed || 50;
-    const escape = (pSpeed * 32) / Math.max(1, eSpeed) + 30 * Math.random() * 100;
-    const escaped = Math.random() * 256 < (escape/8);
+    // ---- FIX #6: Formula canonical Gen 1+ ----
+    // F = ((A*32) / max(1, B/4)) + 30 * C
+    // onde A=player speed, B=wild speed (dividido por 4 mod 256), C=attempts+1.
+    // Escape se F >= 255 (sempre foge) ou se random(0..255) < F.
+    // Speed agora REALMENTE importa: A >> B = quase sempre foge; A << B = raro.
+    this._runAttempts = (this._runAttempts || 0) + 1;
+    const A = core.effStat(this.pMon, 'speed');  // usa stat efetivo (paralisia etc)
+    const B = core.effStat(this.eMon, 'speed');
+    const F = Math.floor((A * 32) / Math.max(1, Math.floor(B / 4) % 256)) + 30 * this._runAttempts;
+    const escaped = F >= 255 || Math.floor(Math.random() * 256) < F;
     audio.playSfx('cancel');
     if(escaped){
       this.log.push(`Você fugiu em segurança!`);
@@ -1129,9 +1216,17 @@ class BattleEngine{
     const enemy = this.eMon;
     const hpRatio = enemy.hp / enemy.maxHp;
     const baseRate = 0.55;
-    let chance = baseRate * item.mult * (1 - hpRatio*0.7);
-    chance = Math.max(0.06, Math.min(0.96, chance));
-    const success = Math.random() < chance;
+    // ---- FIX #5: Master Ball SEMPRE captura ----
+    // ballTag 'master' (qualquer item.mult >= 255) bypassa clamp e roll.
+    const isMaster = item.ballTag === 'master' || (item.mult || 0) >= 255;
+    let chance;
+    if (isMaster) {
+      chance = 1;
+    } else {
+      chance = baseRate * item.mult * (1 - hpRatio*0.7);
+      chance = Math.max(0.06, Math.min(0.96, chance));
+    }
+    const success = isMaster || Math.random() < chance;
     // number of shakes: 3 on success, 0-2 on fail (suspense)
     const shakeCount = success ? 3 : Math.floor(Math.random()*3);
     for(let i=0;i<Math.max(1,shakeCount);i++){

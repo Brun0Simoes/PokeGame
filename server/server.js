@@ -20,7 +20,10 @@
 import 'dotenv/config';
 import { createServer as createHttpServer } from 'node:http';
 import { createServer as createHttpsServer } from 'node:https';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdirSync } from 'node:fs';
+import { promises as fsp } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { join as pathJoin } from 'node:path';
 import { WebSocketServer } from 'ws';
 
 /* ---------- Config ---------- */
@@ -35,6 +38,51 @@ const HEARTBEAT_MS         = parseInt(process.env.HEARTBEAT_MS         || '30000
 const TLS_CERT_PATH        = process.env.TLS_CERT_PATH || '';
 const TLS_KEY_PATH         = process.env.TLS_KEY_PATH  || '';
 
+/* ---------- Sync de save (HTTP) ---------- */
+const SAVE_DIR             = process.env.SAVE_DIR     || './saves';
+const SERVER_PEPPER        = process.env.SERVER_PEPPER || '';
+const MAX_BODY_BYTES       = parseInt(process.env.MAX_BODY_BYTES || '524288', 10); // 512KB
+mkdirSync(SAVE_DIR, { recursive: true });
+
+function emailKey(email)            { return createHash('sha256').update(String(email).toLowerCase()).digest('hex'); }
+function serverHash(clientHash, em) { return createHash('sha256').update(String(clientHash) + ':' + String(em).toLowerCase() + ':' + SERVER_PEPPER).digest('hex'); }
+function safeEq(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let r = 0; for (let i=0;i<a.length;i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+async function readSaveRecord(email) {
+  try {
+    const data = await fsp.readFile(pathJoin(SAVE_DIR, emailKey(email) + '.json'), 'utf8');
+    return JSON.parse(data);
+  } catch { return null; }
+}
+async function writeSaveRecord(email, record) {
+  const file = pathJoin(SAVE_DIR, emailKey(email) + '.json');
+  const tmp  = file + '.tmp';
+  await fsp.writeFile(tmp, JSON.stringify(record));
+  await fsp.rename(tmp, file);
+}
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let total = 0; const chunks = [];
+    req.on('data', c => {
+      total += c.length;
+      if (total > MAX_BODY_BYTES) { req.destroy(); reject(new Error('too-large')); return; }
+      chunks.push(c);
+    });
+    req.on('end', () => {
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
+      catch { reject(new Error('bad-json')); }
+    });
+    req.on('error', reject);
+  });
+}
+function jsonRes(res, status, obj) {
+  res.writeHead(status, { 'content-type': 'application/json' });
+  res.end(JSON.stringify(obj));
+}
+
 /* ---------- HTTP(S) ---------- */
 const usingTls = TLS_CERT_PATH && TLS_KEY_PATH;
 const httpServer = usingTls
@@ -44,18 +92,116 @@ const httpServer = usingTls
     })
   : createHttpServer();
 
-// Rota simples para health-check (uteis para tuneis / load balancers).
-httpServer.on('request', (req, res) => {
+httpServer.on('request', async (req, res) => {
+  // ----- CORS -----
+  const origin = req.headers.origin || '';
+  if (origin) {
+    if (ALLOWED_ORIGINS.length && !ALLOWED_ORIGINS.includes(origin)) {
+      res.writeHead(403); res.end(); return;
+    }
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Max-Age', '600');
+  }
+  if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
+  // ----- health -----
   if (req.url === '/health' || req.url === '/') {
-    res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({
+    return jsonRes(res, 200, {
       ok: true,
       service: 'pkq-server',
       clients: clients.size,
       uptimeSec: Math.round(process.uptime()),
-    }));
-    return;
+    });
   }
+
+  // ----- /api/* -----
+  if (req.url.startsWith('/api/')) {
+    // Bearer gateway token
+    if (AUTH_TOKEN) {
+      const auth = req.headers.authorization || '';
+      if (!safeEq(auth, 'Bearer ' + AUTH_TOKEN)) {
+        return jsonRes(res, 401, { error: 'unauthorized' });
+      }
+    }
+    try {
+      const body = req.method === 'POST' ? await readBody(req) : {};
+      const { email, pwHash } = body || {};
+
+      // ----- POST /api/register -----
+      if (req.url === '/api/register' && req.method === 'POST') {
+        const { trainerName, regionId, starterId, save } = body || {};
+        if (!email || !pwHash || !trainerName || !regionId || !starterId || !save) {
+          return jsonRes(res, 400, { error: 'missing-fields' });
+        }
+        if (typeof email !== 'string' || email.length > 254) return jsonRes(res, 400, { error: 'bad-email' });
+        if (typeof pwHash !== 'string' || pwHash.length > 256) return jsonRes(res, 400, { error: 'bad-pwhash' });
+        const existing = await readSaveRecord(email);
+        if (existing) return jsonRes(res, 409, { error: 'exists' });
+        const now = Date.now();
+        const record = {
+          email: email.toLowerCase(),
+          pwHash: serverHash(pwHash, email),
+          trainerName: String(trainerName).slice(0, 32),
+          regionId, starterId, save,
+          createdAt: now, updatedAt: now,
+        };
+        await writeSaveRecord(email, record);
+        log('register', record.email);
+        return jsonRes(res, 200, {
+          ok: true,
+          account: { email: record.email, trainerName: record.trainerName, regionId, starterId },
+          updatedAt: record.updatedAt,
+        });
+      }
+
+      // ----- POST /api/login -----
+      if (req.url === '/api/login' && req.method === 'POST') {
+        if (!email || !pwHash) return jsonRes(res, 400, { error: 'missing-fields' });
+        const record = await readSaveRecord(email);
+        if (!record) return jsonRes(res, 404, { error: 'not-found' });
+        if (!safeEq(record.pwHash, serverHash(pwHash, email))) {
+          return jsonRes(res, 401, { error: 'invalid' });
+        }
+        log('login', record.email);
+        return jsonRes(res, 200, {
+          ok: true,
+          account: {
+            email: record.email,
+            trainerName: record.trainerName,
+            regionId: record.regionId,
+            starterId: record.starterId,
+          },
+          save: record.save,
+          updatedAt: record.updatedAt,
+        });
+      }
+
+      // ----- POST /api/save -----
+      if (req.url === '/api/save' && req.method === 'POST') {
+        const { save } = body || {};
+        if (!email || !pwHash || !save) return jsonRes(res, 400, { error: 'missing-fields' });
+        const record = await readSaveRecord(email);
+        if (!record) return jsonRes(res, 404, { error: 'not-found' });
+        if (!safeEq(record.pwHash, serverHash(pwHash, email))) {
+          return jsonRes(res, 401, { error: 'invalid' });
+        }
+        record.save = save;
+        record.updatedAt = Date.now();
+        await writeSaveRecord(email, record);
+        return jsonRes(res, 200, { ok: true, updatedAt: record.updatedAt });
+      }
+
+      return jsonRes(res, 404, { error: 'no-such-endpoint' });
+    } catch (e) {
+      log('api err', req.url, e.message);
+      const status = e.message === 'too-large' ? 413 : (e.message === 'bad-json' ? 400 : 500);
+      return jsonRes(res, status, { error: e.message });
+    }
+  }
+
   res.writeHead(404); res.end();
 });
 

@@ -5,7 +5,7 @@
    - Runtime-caches sprite/cry assets (cache-first)
    ============================================================ */
 
-const VERSION = 'pkq-v3';
+const VERSION = 'pkq-v4';
 const SHELL = VERSION + '-shell';
 const API   = VERSION + '-api';
 const ASSET = VERSION + '-asset';
@@ -18,7 +18,7 @@ const SHELL_FILES = [
   'icon.svg',
   'js/main.js', 'js/router.js', 'js/storage.js', 'js/data.js',
   'js/data/world.js', 'js/api.js', 'js/audio.js', 'js/ui.js', 'js/scenes.js',
-  'js/auth.js', 'js/game.js', 'js/tabs.js', 'js/trainer.js', 'js/trainer-sprite.js',
+  'js/auth.js', 'js/server-sync.js', 'js/game.js', 'js/tabs.js', 'js/trainer.js', 'js/trainer-sprite.js',
   'js/mon-stats.js', 'js/mon-detail.js', 'js/battle.js', 'js/battle-core.js',
   'js/evolution.js', 'js/breeding.js', 'js/quests.js', 'js/net.js', 'js/ar.js',
   'js/tabs/wild.js', 'js/tabs/profile.js', 'js/tabs/team.js', 'js/tabs/pc.js',

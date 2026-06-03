@@ -78,7 +78,9 @@ function titleView(){
     el('div', { class:'press-start' }, '▸ PRESSIONE START'),
     el('div', { class:'title-actions' }, [
       button({ label:'NOVO JOGO', kind:'primary', onClick: ()=>{ audio.playSfx('open'); state.mode='register'; refresh(); } }),
-      button({ label:'CONTINUAR', kind:'blue', onClick: ()=>{ audio.playSfx('open'); state.mode='login'; refresh(); }, disabled: accounts.length===0 }),
+      // CONTINUAR sempre habilitado: mesmo sem conta neste navegador, o
+      // login tenta baixar a conta do servidor (cross-device).
+      button({ label:'CONTINUAR', kind:'blue', onClick: ()=>{ audio.playSfx('open'); state.mode='login'; refresh(); } }),
     ]),
     accounts.length===0 ? null : el('div', { class:'recent-accounts' }, [
       el('div', { class:'rs-label' }, 'CONTAS SALVAS'),
@@ -104,13 +106,41 @@ function loginView(){
   const submit = async (e)=>{
     e?.preventDefault?.();
     errorEl.textContent = '';
+    const email = emailIn.value.trim();
+    const pw    = pwIn.value;
+    if (!email || !pw){ errorEl.textContent = 'Preencha email e senha.'; audio.playSfx('error'); return; }
+    // 1) login local (rapido)
     try{
-      Store.login(emailIn.value.trim(), pwIn.value);
+      Store.login(email, pw);
       audio.playSfx('success');
       go('/game/wild');
-    }catch(err){
-      errorEl.textContent = err.message;
-      audio.playSfx('error');
+      return;
+    }catch(localErr){
+      // 2) se a conta nao existe localmente OU senha bate localmente mas o usuario
+      //    quer trazer um save mais novo, tenta o servidor.
+      const isNotFound = /n[aã]o encontrada/i.test(localErr.message);
+      const isWrongPw  = /senha incorreta/i.test(localErr.message);
+      // Sempre tenta servidor; ele decide
+      errorEl.textContent = 'Buscando no servidor...';
+      try{
+        await Store.serverLogin(email, pw);
+        audio.playSfx('success');
+        go('/game/wild');
+        return;
+      }catch(remoteErr){
+        if (remoteErr.status === 404) {
+          errorEl.textContent = isNotFound
+            ? 'Conta nao encontrada. Use NOVO JOGO para criar.'
+            : localErr.message;
+        } else if (remoteErr.status === 401) {
+          errorEl.textContent = 'Senha incorreta.';
+        } else if (remoteErr.message === 'sync-disabled' || remoteErr.message === 'Sync indisponivel.'){
+          errorEl.textContent = localErr.message;
+        } else {
+          errorEl.textContent = isWrongPw ? 'Senha incorreta.' : ('Servidor: ' + remoteErr.message);
+        }
+        audio.playSfx('error');
+      }
     }
   };
 
@@ -328,6 +358,11 @@ async function finalize(){
 
     Store.setSave(acc.email, save);
     Store.login(state.email, state.password);
+    // Registra no servidor imediatamente para que outros dispositivos
+    // possam fazer login. Fire-and-forget: nao bloqueia entrada no jogo.
+    Store.serverRegister(state.email, state.password).catch(err => {
+      console.warn('Server register falhou (jogo continua local):', err.message || err);
+    });
     audio.playSfx('success');
     setTimeout(()=>{ go('/game/wild'); }, 900);
   }catch(err){

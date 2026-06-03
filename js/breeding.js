@@ -11,21 +11,33 @@ export function ensureDaycare(save){
   return save.daycare;
 }
 
-/* Two mons are compatible if they share an egg group proxy:
-   simplified — same first type OR same evolution base family. */
+/* ---- PHASE 5: Compatibility canonical (egg groups) ---- */
+/* Cache de egg-groups: especieId -> array de nomes ('field','water1', etc) */
+const _eggCache = new Map();
+async function eggGroupsFor(id){
+  if(_eggCache.has(id)) return _eggCache.get(id);
+  try{
+    const sp = await api.getSpecies(id);
+    const groups = (sp?.egg_groups || []).map(g => g.name);
+    _eggCache.set(id, groups);
+    return groups;
+  } catch { _eggCache.set(id, []); return []; }
+}
+
+/* Canonical: dois mons sao compatíveis se compartilham PELO MENOS um
+   egg group, EXCETO se algum eh do grupo 'no-eggs' (lendários etc).
+   Ditto e excecao: faz par com qualquer um (exceto 'no-eggs' tambem).
+   Mesma especie tambem nao bate (uid check) e mesmas evolucoes. */
 export async function compatible(a, b){
   if(!a || !b) return false;
   if(a.uid === b.uid) return false;
-  // shared type = compatible (simple, generous rule)
-  const at = a.types||[], bt = b.types||[];
-  if(at.some(t=>bt.includes(t))) return true;
-  // same evolution family
-  try{
-    const pa = await api.getEvolutionPath(a.id);
-    const pb = await api.getEvolutionPath(b.id);
-    if(pa && pb && pa[0] && pb[0] && pa[0].id === pb[0].id) return true;
-  }catch{}
-  return false;
+  const [ga, gb] = await Promise.all([eggGroupsFor(a.id), eggGroupsFor(b.id)]);
+  // Lendários / 'no-eggs' nunca cruzam
+  if(ga.includes('no-eggs') || gb.includes('no-eggs')) return false;
+  // Ditto (id 132) eh universal exceto vs 'no-eggs' (ja filtrado acima)
+  if(a.id === 132 || b.id === 132) return true;
+  // Compartilha algum egg group?
+  return ga.some(g => gb.includes(g));
 }
 
 /* Produce an egg from the two day-care mons. The egg stores the

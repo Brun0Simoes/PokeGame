@@ -101,8 +101,19 @@ class BattleEngine{
       mon._stages = core.freshStages();
       mon._heldData = mon.held ? (ITEMS[mon.held]?.held || null) : null;
       mon._sashUsed = false;
+      mon._gemUsed = false;
+      mon._powerHerbUsed = false;
+      mon._metroStacks = 0;
+      mon._lastMove = null;
       mon._battlePrepped = true;
       mon._sleepTurns = undefined;
+      // PHASE 1: Eviolite — checa se ainda evolui (async, defaults false)
+      mon._canStillEvolve = false;
+      if(mon._heldData?.effect === 'eviolite'){
+        import('./evolution.js').then(ev =>
+          ev.nextEvolution(mon).then(n => { mon._canStillEvolve = !!n; })
+        ).catch(()=>{});
+      }
     }
   }
 
@@ -146,6 +157,11 @@ class BattleEngine{
     for(const e of evs){
       this.log.push(e.message);
       if(e.weather){ this.weather = e.weather; this.weatherTurns = 5; }
+    }
+    // ---- PHASE 1: Heavy-Duty Boots — ignora hazards ----
+    if(mon._heldData?.effect==='boots'){
+      this.log.push(`${(mon.nickname||mon.name).toUpperCase()} ignorou os perigos com as Botas Resistentes.`);
+      return;
     }
     // entry hazards on the side the mon enters
     const side = (mon === this.pMon) ? this.pSide : this.eSide;
@@ -576,20 +592,33 @@ class BattleEngine{
     const data = core.MEGA_DATA[mon.id];
     let megaName = held.megaName || ('Mega '+mon.name.toUpperCase());
     let newTypes = null;
+    let delta = null;
     if(data){
-      if(data.x && /\bX$/.test(held.megaName||'')) { megaName=data.x.name; newTypes=data.x.types; }
-      else if(data.y && /\bY$/.test(held.megaName||'')) { megaName=data.y.name; newTypes=data.y.types; }
-      else if(data.types){ megaName=data.name; newTypes=data.types; }
+      // X/Y forms (Charizard, Mewtwo) escolhidas pelo nome do held item
+      if(data.x && /\bX$/.test(held.megaName||'')) {
+        megaName=data.x.name; newTypes=data.x.types; delta=data.x.delta;
+      } else if(data.y && /\bY$/.test(held.megaName||'')) {
+        megaName=data.y.name; newTypes=data.y.types; delta=data.y.delta;
+      } else if(data.types){
+        megaName=data.name; newTypes=data.types; delta=data.delta;
+      }
     }
     this.log.push(`◈ ${(mon.nickname||mon.name).toUpperCase()} Mega Evoluiu para <b>${megaName}</b>!`);
     mon._megaBackup = { stats: { ...mon.stats }, types: [...mon.types] };
-    for(const k of ['attack','defense','special-attack','special-defense','speed']){
-      mon.stats[k] = Math.round(mon.stats[k] * 1.2);
+    // ---- PHASE 2: aplica delta canonical por espécie. Fallback +20% flat. ----
+    if(delta){
+      for(const k of ['attack','defense','special-attack','special-defense','speed']){
+        mon.stats[k] = Math.max(1, mon.stats[k] + (delta[k] || 0));
+      }
+    } else {
+      // espécie fora do MEGA_DATA — fallback antigo
+      for(const k of ['attack','defense','special-attack','special-defense','speed']){
+        mon.stats[k] = Math.round(mon.stats[k] * 1.2);
+      }
     }
     if(newTypes) mon.types = newTypes;
     mon._mega = true;
     await this._playGimmickFx('mega');
-    this.log.push(`◈ ${(mon.nickname||mon.name).toUpperCase()} Mega Evoluiu para <b>${megaName}</b>!`);
     this._render(); await wait(500);
   }
   async _doDynamax(){
@@ -706,16 +735,32 @@ class BattleEngine{
     const attName = (attacker.nickname || attacker.name).toUpperCase();
     const isZ = !!gctx.z, isMax = !!gctx.max;
     // two-turn (charge) moves: first use charges, then auto-fires
+    // ---- PHASE 1: Power Herb pula charge (uma vez) ----
+    const powerHerbSkip = attacker._heldData?.effect==='powerherb' && !attacker._powerHerbUsed;
     if(core.isChargeMove(move.name) && !isZ && !isMax && attacker._charging !== move.name
-       && !core.chargeSkippedByWeather(move.name, this.weather)){
+       && !core.chargeSkippedByWeather(move.name, this.weather)
+       && !powerHerbSkip){
       attacker._charging = move.name;
       this.log.push(`${attName} ${core.CHARGE_MOVES[move.name]}`);
       this._render(); await wait(700);
       return;
     }
+    if(core.isChargeMove(move.name) && powerHerbSkip){
+      attacker._powerHerbUsed = true;
+      attacker._heldData = null;
+      this.log.push(`${attName} usou a Erva Poder para pular a recarga!`);
+    }
     attacker._charging = null;
+    // ---- PHASE 6: Z-signature detection ----
+    let zSig = null;
+    if(isZ){
+      const heldRaw = ITEMS[attacker.held];
+      if(heldRaw?.signature){
+        zSig = core.zSignatureFor(attacker.id, heldRaw.signature);
+      }
+    }
     let label = move.name.replace(/-/g,' ').toUpperCase();
-    if(isZ)  label = core.zMoveName(move.type).toUpperCase();
+    if(isZ)  label = (zSig ? zSig.name : core.zMoveName(move.type)).toUpperCase();
     if(isMax) label = core.maxMoveName(move.type, this._gmaxFor(attacker)).toUpperCase();
     this.log.push(`${attName} usou <b>${label}</b>!`);
     this._render();
@@ -775,9 +820,31 @@ class BattleEngine{
       this._render(); await wait(600);
       return;
     }
-    const crit = core.rollCrit(0);
+    // ---- PHASE 1: held items que afetam crit ----
+    let critStage = 0;
+    if(attacker._heldData?.effect==='critstage') critStage += 1; // Scope Lens
+    if(attacker._heldData?.effect==='critup' && attacker.hp <= attacker.maxHp/4){
+      critStage += 2; // Lansat Berry: pinch boost
+    }
+    const crit = core.rollCrit(critStage);
     let basePower = move.power || 40;
-    if(isZ)  basePower = core.zPower(basePower);
+    if(isZ){
+      // PHASE 6: Z-signature override de basePower e tipo do dano
+      if(zSig){
+        basePower = zSig.basePower;
+        if(zSig.basePower === 0){
+          // Status Z (Extreme Evoboost: +2 all stats)
+          if(zSig.effect?.kind === 'allStatsUp'){
+            this._buff(attacker, 'all', zSig.effect.stages || 1, attackerIsEnemy);
+            this.log.push(`${attName} ativou o Movimento Z assinatura!`);
+            this._render(); await wait(600);
+            return;
+          }
+        }
+      } else {
+        basePower = core.zPower(basePower);
+      }
+    }
     if(isMax) basePower = core.maxBasePower(move.power || 40);
 
     let dmg = this._damage(attacker, defender, move, basePower, crit);
@@ -791,11 +858,37 @@ class BattleEngine{
     if(!crit) dmg = Math.floor(dmg * core.screenMult(defSide, move));
     // weather
     dmg = Math.floor(dmg * core.weatherDamageMult(move.type, this.weather));
-    // held: life orb / expert belt
+    // ---- PHASE 1: Held items — damage modifiers no atacante ----
     const hd = attacker._heldData;
     if(hd){
       if(hd.effect==='lifeorb') dmg = Math.floor(dmg * 1.3);
       if(hd.effect==='expertbelt' && eff > 1) dmg = Math.floor(dmg * 1.2);
+      // Muscle Band / Wise Glasses
+      if(hd.effect==='physboost' && move.damage_class==='physical') dmg = Math.floor(dmg * (hd.mult||1.1));
+      if(hd.effect==='specboost' && move.damage_class==='special')  dmg = Math.floor(dmg * (hd.mult||1.1));
+      // Type-boost items (charcoal, magnet, miracle-seed, etc — 17 itens)
+      if(hd.effect==='typeboost' && hd.boostType === move.type) dmg = Math.floor(dmg * (hd.mult||1.2));
+      // Gems (one-shot 1.3x do tipo)
+      if(hd.effect==='gem' && hd.gemType === move.type && !attacker._gemUsed){
+        dmg = Math.floor(dmg * (hd.mult||1.3));
+        attacker._gemUsed = true;
+        this.log.push(`A ${(hd.gemType||'').toUpperCase()} Gem fortaleceu o golpe!`);
+      }
+      // Metronome (item) — turnos consecutivos com o mesmo move +20%/turno cap +100%
+      if(hd.effect==='metronome'){
+        if(attacker._lastMove === move.name){
+          attacker._metroStacks = Math.min(5, (attacker._metroStacks||0) + 1);
+        } else {
+          attacker._metroStacks = 0;
+        }
+        const mult = 1 + 0.2 * attacker._metroStacks;
+        if(mult > 1) dmg = Math.floor(dmg * mult);
+      }
+    }
+    // ---- Defesa: Eviolite (+50% defesas se ainda evolui) ----
+    // (aplicado como divisor no dmg pra equivalência)
+    if(defender._heldData?.effect==='eviolite' && defender._canStillEvolve){
+      dmg = Math.floor(dmg / 1.5);
     }
     if(attacker._mega) dmg = Math.floor(dmg * 1.05);
 
@@ -807,6 +900,7 @@ class BattleEngine{
       dmg = defender.hp - 1; sash = true;
     }
     defender.hp = Math.max(0, defender.hp - dmg);
+    attacker._lastMove = move.name; // pra Metronome (item)
     if(attackerIsEnemy) this._playerHurt = true; else this._enemyHurt = true;
     audio.playSfx('throw');
     this._render();
@@ -826,6 +920,45 @@ class BattleEngine{
       attacker.hp = Math.max(0, attacker.hp - recoil);
       this.log.push(`${attName} perdeu PS pelo Orbe Vida.`);
       this._render(); await wait(450);
+    }
+    // ---- PHASE 1: pos-dano held items ----
+    // Shell Bell: cura 1/8 do dano causado
+    if(hd?.effect==='shellbell' && dmg > 0 && attacker.hp > 0 && attacker.hp < attacker.maxHp){
+      const heal = Math.max(1, Math.floor(dmg / 8));
+      attacker.hp = Math.min(attacker.maxHp, attacker.hp + heal);
+      this.log.push(`${attName} recuperou PS com o Sino Concha!`);
+      this._render(); await wait(400);
+    }
+    // Air Balloon: estoura ao tomar dano direto (vira grounded)
+    if(defender._heldData?.effect==='airballoon' && dmg > 0 && defender.hp > 0){
+      this.log.push(`O Balão de Ar de ${(defender.nickname||defender.name).toUpperCase()} estourou!`);
+      defender._heldData = null;
+      this._render(); await wait(400);
+    }
+    // Weakness Policy: +2 ATK e +2 SP.ATK ao levar golpe super eficaz
+    if(defender._heldData?.effect==='weaknesspolicy' && eff > 1 && dmg > 0 && defender.hp > 0){
+      defender._stages = defender._stages || core.freshStages();
+      defender._stages.attack = Math.min(6, (defender._stages.attack||0) + 2);
+      defender._stages['special-attack'] = Math.min(6, (defender._stages['special-attack']||0) + 2);
+      defender._heldData = null;
+      this.log.push(`${(defender.nickname||defender.name).toUpperCase()} ativou a Política Fraqueza!`);
+      this._render(); await wait(500);
+    }
+    // Absorb Bulb: +1 SPA ao ser atingido por golpe de Água
+    if(defender._heldData?.effect==='absorbbulb' && move.type==='water' && dmg > 0 && defender.hp > 0){
+      defender._stages = defender._stages || core.freshStages();
+      defender._stages['special-attack'] = Math.min(6, (defender._stages['special-attack']||0) + 1);
+      defender._heldData = null;
+      this.log.push(`O Bulbo Absorção fortaleceu o Atq. Esp. de ${(defender.nickname||defender.name).toUpperCase()}!`);
+      this._render(); await wait(500);
+    }
+    // Cell Battery: +1 ATK ao ser atingido por golpe Elétrico
+    if(defender._heldData?.effect==='cellbattery' && move.type==='electric' && dmg > 0 && defender.hp > 0){
+      defender._stages = defender._stages || core.freshStages();
+      defender._stages.attack = Math.min(6, (defender._stages.attack||0) + 1);
+      defender._heldData = null;
+      this.log.push(`A Pilha fortaleceu o Ataque de ${(defender.nickname||defender.name).toUpperCase()}!`);
+      this._render(); await wait(500);
     }
     // Rocky Helmet on defender
     if(defender._heldData?.effect==='rockyhelmet' && core.makesContact(move) && attacker.hp>0){
@@ -869,6 +1002,13 @@ class BattleEngine{
     if(isMax){
       await this._applyMaxEffect(attacker, defender, move, attackerIsEnemy);
     }
+    // PHASE 6: Z-signature post-hit effects (terrain etc)
+    if(isZ && zSig?.effect?.kind === 'terrain'){
+      this.terrain = zSig.effect.value;
+      this.terrainTurns = 5;
+      this.log.push(`O ${core.TERRAIN[zSig.effect.value]} se manifestou!`);
+      this._render(); await wait(550);
+    }
   }
 
   _accuracyHit(attacker, defender, move){
@@ -876,7 +1016,13 @@ class BattleEngine{
     const aStage = attacker._stages?.accuracy || 0;
     const eStage = defender._stages?.evasion || 0;
     const net = Math.max(-6, Math.min(6, aStage - eStage));
-    return Math.random()*100 < move.accuracy * core.accMult(net);
+    let acc = move.accuracy * core.accMult(net);
+    // ---- PHASE 1: held item accuracy modifiers ----
+    // Wide Lens — +10% precisao do atacante
+    if(attacker._heldData?.effect==='accuracy') acc *= (attacker._heldData.mult || 1.1);
+    // Bright Powder — -10% precisao do golpe inimigo
+    if(defender._heldData?.effect==='evasion') acc *= 1 / (defender._heldData.mult || 1.1);
+    return Math.random()*100 < acc;
   }
 
   _damage(attacker, defender, move, basePower, crit){
@@ -908,7 +1054,13 @@ class BattleEngine{
     if(ter){ this.terrain = ter; this.terrainTurns = 5; this.log.push(`${attName} criou o ${core.TERRAIN[ter]}!`); this._render(); await wait(600); return; }
     // screens (attacker's own side)
     const scr = core.moveSetsScreen(move.name);
-    if(scr){ const side = attackerIsEnemy ? this.eSide : this.pSide; side[scr] = 5; this.log.push(`Uma barreira protege o time de ${attName}!`); this._render(); await wait(600); return; }
+    if(scr){
+      const side = attackerIsEnemy ? this.eSide : this.pSide;
+      // ---- PHASE 1: Light Clay estende screens (5→8 turnos) ----
+      side[scr] = (attacker._heldData?.effect==='lightclay') ? 8 : 5;
+      this.log.push(`Uma barreira protege o time de ${attName}!`);
+      this._render(); await wait(600); return;
+    }
     // hazards (opponent's side)
     const haz = core.moveSetsHazard(move.name);
     if(haz){ const side = attackerIsEnemy ? this.pSide : this.eSide; if(haz==='spikes') side.spikes=Math.min(3,side.spikes+1); else if(haz==='toxicspikes') side.toxicspikes=Math.min(2,side.toxicspikes+1); else side[haz]=true; this.log.push(`${attName} espalhou perigos no campo inimigo!`); this._render(); await wait(600); return; }
@@ -985,17 +1137,37 @@ class BattleEngine{
   _pickAIMove(){
     const moves = (this.eMon.moves || []).filter(m=>m.pp>0);
     if(moves.length === 0) return null;
-    const damaging = moves.filter(m=>m.power>0);
-    // ~20% chance to use a status/buff move if available
-    const statusMoves = moves.filter(m=>!m.power || m.power===0);
-    if(statusMoves.length && Math.random()<0.2) return statusMoves[Math.floor(Math.random()*statusMoves.length)];
-    const pool = damaging.length ? damaging : moves;
-    pool.sort((a,b)=>{
-      const am = (a.power||0) * typeMultiplier(a.type, this.pMon.types);
-      const bm = (b.power||0) * typeMultiplier(b.type, this.pMon.types);
-      return bm - am;
-    });
-    return pool[0];
+    const target = this.pMon;
+    // ---- PHASE 4: AI awareness ----
+    // Score = power * typeEff * accuracy * STAB - penalty se imune por ability
+    const scoreMove = (m) => {
+      const power = m.power || 0;
+      const eff = typeMultiplier(m.type, target.types);
+      if (eff === 0) return -1; // type-immune
+      // Ability absorptions/immunities (Levitate, Flash Fire, Water/Volt Absorb)
+      const absorb = core.abilityAbsorb(target, m);
+      if (absorb?.immune) return -1;
+      const acc = (m.accuracy ?? 100) / 100;
+      const stab = (this.eMon.types || []).includes(m.type) ? 1.5 : 1;
+      // Status moves: score baixo (~30) — preferido só se nada bate
+      if (power === 0) {
+        // Buffs/curas tem valor proporcional a HP%
+        const hpRatio = this.eMon.hp / this.eMon.maxHp;
+        if (/recover|roost|soft-boiled|milk-drink|rest/.test(m.name) && hpRatio < 0.5) return 80;
+        if (/swords-dance|dragon-dance|nasty-plot|calm-mind|agility|bulk-up/.test(m.name) && hpRatio > 0.7) return 50;
+        if (m.meta?.ailment && m.meta.ailment !== 'none' && (!target.status || target.status === 'none')) return 40;
+        return 20; // status moves fallback
+      }
+      return power * eff * acc * stab;
+    };
+    // tem moves com efeito? Pega o melhor; com pequena chance de variar (10%)
+    const scored = moves.map(m => ({ m, s: scoreMove(m) }));
+    scored.sort((a,b)=>b.s - a.s);
+    // Se top score for negativo (so opcoes inertes), pega aleatorio
+    if (scored[0].s < 0) return moves[Math.floor(Math.random()*moves.length)];
+    // 10% chance de pegar o 2o melhor pra variar (anti-decorar)
+    if (scored.length > 1 && scored[1].s > 0 && Math.random() < 0.1) return scored[1].m;
+    return scored[0].m;
   }
 
   async _endTurn(){
@@ -1033,9 +1205,10 @@ class BattleEngine{
         }
       }
     }
-    // ----- 3-6. Por mon: status, ability, leftovers, berries -----
+    // ----- 3-6. Por mon: status, ability, leftovers, berries, orbs -----
     for(const mon of [this.pMon, this.eMon]){
       if(!mon || mon.hp<=0) continue;
+      const nm = (mon.nickname||mon.name).toUpperCase();
       // 3. status residual
       const evs = core.endOfTurnStatus(mon);
       for(const e of evs){ this.log.push(e.message); this._render(); await wait(550); }
@@ -1043,21 +1216,68 @@ class BattleEngine{
       // 4. ability end-of-turn
       const aev = core.abilityEndOfTurn(mon);
       for(const e of aev){ this.log.push(e.message); this._render(); await wait(420); }
+      // ---- PHASE 1: Flame Orb / Toxic Orb auto-inflingem status ----
+      if(mon._heldData?.effect==='flameorb' && (!mon.status || mon.status==='none')){
+        const r = core.applyStatus(mon, 'burned');
+        if(r.ok){ this.log.push(`${nm} foi queimado pelo Orbe Chama!`); this._render(); await wait(450); }
+      }
+      if(mon._heldData?.effect==='toxicorb' && (!mon.status || mon.status==='none')){
+        const r = core.applyStatus(mon, 'poisoned');
+        if(r.ok){ this.log.push(`${nm} foi envenenado pelo Orbe Tóxico!`); this._render(); await wait(450); }
+      }
+      // ---- PHASE 1: Black Sludge — cura poison, fere outros ----
+      if(mon._heldData?.effect==='blacksludge'){
+        if((mon.types||[]).includes('poison')){
+          if(mon.hp < mon.maxHp){
+            const heal = Math.max(1, Math.floor(mon.maxHp/16));
+            mon.hp = Math.min(mon.maxHp, mon.hp + heal);
+            this.log.push(`${nm} recuperou PS com a Casca Preta.`);
+            this._render(); await wait(400);
+          }
+        } else {
+          const d = Math.max(1, Math.floor(mon.maxHp/8));
+          mon.hp = Math.max(0, mon.hp - d);
+          this.log.push(`${nm} sofreu com a Casca Preta!`);
+          this._render(); await wait(400);
+        }
+      }
+      // ---- PHASE 1: Mental Herb — cura confusao + ailments mentais ----
+      if(mon._heldData?.effect==='mentalherb' && mon._confused){
+        mon._confused = 0;
+        mon._heldData = null;
+        this.log.push(`${nm} clareou a mente com a Erva Mental!`);
+        this._render(); await wait(400);
+      }
       // 5. leftovers
       if(mon._heldData?.effect==='leftovers' && mon.hp < mon.maxHp){
         const heal = Math.max(1, Math.floor(mon.maxHp/16));
         mon.hp = Math.min(mon.maxHp, mon.hp + heal);
-        this.log.push(`${(mon.nickname||mon.name).toUpperCase()} recuperou PS com os Restos.`);
+        this.log.push(`${nm} recuperou PS com os Restos.`);
         this._render(); await wait(450);
       }
-      // 6. sitrus berry (reage ao HP final apos weather/status/leftovers)
+      // 6. Berries (sitrus, oran, lum) — reagem ao HP final
+      // Sitrus: cura 25% quando <= 50%
       if(mon._heldData?.effect==='sitrus' && mon.hp <= mon.maxHp*0.5 && !mon._sitrusUsed){
         mon._sitrusUsed = true;
         const heal = Math.floor(mon.maxHp*0.25);
         mon.hp = Math.min(mon.maxHp, mon.hp + heal);
-        this.log.push(`${(mon.nickname||mon.name).toUpperCase()} comeu a Baga Sitrus e recuperou PS!`);
+        this.log.push(`${nm} comeu a Baga Sitrus e recuperou PS!`);
         mon._heldData = null;
         this._render(); await wait(500);
+      }
+      // ---- PHASE 1: Oran Berry — cura 10 fixos quando <= 50% ----
+      if(mon._heldData?.effect==='oran' && mon.hp <= mon.maxHp*0.5){
+        mon.hp = Math.min(mon.maxHp, mon.hp + 10);
+        this.log.push(`${nm} comeu a Baga Oran! (+10 PS)`);
+        mon._heldData = null;
+        this._render(); await wait(450);
+      }
+      // ---- PHASE 1: Lum Berry — cura qualquer status ativo ----
+      if(mon._heldData?.effect==='lumberry' && mon.status && mon.status!=='none'){
+        mon.status = 'none';
+        mon._heldData = null;
+        this.log.push(`${nm} comeu a Baga Lum e curou sua condição!`);
+        this._render(); await wait(450);
       }
     }
     // ----- decrement timers -----
@@ -1249,21 +1469,52 @@ class BattleEngine{
     this._render();
     await wait(200);
 
-    // capture chance
+    // ---- PHASE 3: Capture overhaul canonical ----
+    // 1. catchRate por espécie (busca PokeAPI species, fallback 100)
+    // 2. StatusBonus: sleep/freeze ×2.5, par/brn/psn ×1.5
+    // 3. ballTag contextual (Net/Dive/Quick/Dream/Repeat/Nest)
+    // 4. Master ball sempre captura
     const enemy = this.eMon;
     const hpRatio = enemy.hp / enemy.maxHp;
-    const baseRate = 0.55;
-    // ---- FIX #5: Master Ball SEMPRE captura ----
-    // ballTag 'master' (qualquer item.mult >= 255) bypassa clamp e roll.
+
     const isMaster = item.ballTag === 'master' || (item.mult || 0) >= 255;
-    let chance;
+    let chance, success;
     if (isMaster) {
-      chance = 1;
+      chance = 1; success = true;
     } else {
-      chance = baseRate * item.mult * (1 - hpRatio*0.7);
-      chance = Math.max(0.06, Math.min(0.96, chance));
+      // (a) catch rate por espécie
+      let catchRate = 100; // fallback (taxa media)
+      try {
+        const sp = await api.getSpecies(enemy.id);
+        if(sp && typeof sp.capture_rate === 'number') catchRate = sp.capture_rate;
+      } catch {}
+      // (b) ball bonus baseado em ballTag contextual
+      let ballBonus = item.mult || 1;
+      const tag = item.ballTag;
+      this._captureAttempts = (this._captureAttempts || 0);
+      if(tag === 'water/bug' && (enemy.types||[]).some(t=>t==='water'||t==='bug')) ballBonus = 3.5;
+      else if(tag === 'water' && (enemy.types||[]).includes('water'))                ballBonus = 3.5;
+      else if(tag === 'firstturn' && this._captureAttempts === 0)                    ballBonus = 5;
+      else if(tag === 'sleep' && enemy.status === 'asleep')                          ballBonus = 4;
+      else if(tag === 'caught' && this.opts.ctx.save.pokedex.caught[enemy.id])       ballBonus = 3;
+      else if(tag === 'lowlevel') {
+        ballBonus = Math.max(1, Math.min(4, (41 - (enemy.level||1)) / 10));
+      }
+      else if(tag === 'night' || tag === 'lateturn') ballBonus = (item.mult || 1); // simplificado
+      // (c) status bonus
+      let statusBonus = 1;
+      if(enemy.status === 'asleep' || enemy.status === 'frozen') statusBonus = 2.5;
+      else if(['paralyzed','burned','poisoned'].includes(enemy.status)) statusBonus = 1.5;
+      // (d) formula canonical Gen 5+:
+      // a = ((3*max - 2*hp) * catchRate * ball * status) / (3 * max)
+      // chance ≈ 1 - (1 - a/255)^4  (4-shake aproximacao)
+      const a = ((3*enemy.maxHp - 2*enemy.hp) * catchRate * ballBonus * statusBonus) / (3 * enemy.maxHp);
+      const aClamped = Math.max(1, Math.min(255, a));
+      chance = 1 - Math.pow(1 - aClamped/255, 4);
+      chance = Math.max(0.04, Math.min(1.0, chance));
+      success = Math.random() < chance;
+      this._captureAttempts++;
     }
-    const success = isMaster || Math.random() < chance;
     // number of shakes: 3 on success, 0-2 on fail (suspense)
     const shakeCount = success ? 3 : Math.floor(Math.random()*3);
     for(let i=0;i<Math.max(1,shakeCount);i++){
@@ -1287,6 +1538,15 @@ class BattleEngine{
       });
       if(captured){
         captured.hp = Math.max(1, enemy.hp);
+        // ---- PHASE 3: ballTag post-capture effects ----
+        if(item.ballTag === 'heal'){
+          captured.hp = captured.maxHp;
+          captured.status = 'none';
+          this.log.push('A Heal Ball curou totalmente o Pokémon capturado!');
+        }
+        if(item.ballTag === 'friend'){
+          captured.friendship = Math.min(255, (captured.friendship || 70) + 100);
+        }
         if(save.party.length < 6) save.party.push(captured);
         else save.box.push(captured);
         save.pokedex.caught[captured.id] = {

@@ -41,12 +41,21 @@ export async function canEvolveByLevel(mon){
   return null;
 }
 
-/* Can evolve by TRADE (optionally holding an item)? */
+/* ---- PHASE 6: Trade-com-held-item canonical ----
+   Slowpoke + King's Rock = Slowking (trade-with-item)
+   Onix + Metal Coat = Steelix
+   Se nxt.item existe: requer held item especifico.
+   Senao: trade simples. */
 export async function canEvolveByTrade(mon){
   const nxt = await nextEvolution(mon);
   if(!nxt) return null;
-  if(nxt.trigger === 'trade') return nxt;
-  return null;
+  if(nxt.trigger !== 'trade') return null;
+  if(nxt.item){
+    // requer held item especifico
+    if(mon.held && mon.held === nxt.item) return nxt;
+    return null;
+  }
+  return nxt; // trade simples (Machoke→Machamp, Haunter→Gengar)
 }
 
 /* Can evolve by HELD ITEM (level-up while holding)? returns target or null */

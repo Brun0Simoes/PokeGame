@@ -150,6 +150,32 @@ export function zMoveName(moveType){
   })[moveType] || 'Movimento Z';
 }
 
+/* ---- PHASE 6: Z-signature moves ----
+   Tabela: zCrystalId -> { name, basePower, type, effect }
+   Detectada pelo `signature` field do held item (id Pokémon).
+   Quando o cristal Z exclusivo eh usado pelo mon assinado, dispara
+   o move de assinatura em vez do Z genérico. */
+export const Z_SIGNATURE = {
+  25:  { name:'Catastropika',           basePower:210, type:'electric',
+         effect:{ kind:'none' } }, // Pikanium
+  133: { name:'Extreme Evoboost',       basePower:0,   type:'normal',
+         effect:{ kind:'allStatsUp', stages:2 } }, // Eevium
+  143: { name:'Pulverizing Pancake',    basePower:210, type:'normal',
+         effect:{ kind:'none' } }, // Snorlium
+  151: { name:'Genesis Supernova',      basePower:185, type:'psychic',
+         effect:{ kind:'terrain', value:'psychic' } }, // Mewnium
+  724: { name:'Sinister Arrow Raid',    basePower:180, type:'ghost',
+         effect:{ kind:'none' } }, // Decidium
+  727: { name:'Malicious Moonsault',    basePower:180, type:'dark',
+         effect:{ kind:'none' } }, // Incinium
+};
+
+/* Retorna { name, basePower, type, effect } ou null */
+export function zSignatureFor(monId, crystalSignature){
+  if(!crystalSignature || crystalSignature !== monId) return null;
+  return Z_SIGNATURE[monId] || null;
+}
+
 /* ---------- Max / G-Max moves ---------- */
 export function maxMoveName(moveType, isGmax){
   const max = {
@@ -193,20 +219,68 @@ export function maxBasePower(basePower){
   return 150;
 }
 
-/* ---------- Mega evolution data ---------- */
-/* megaFor speciesId -> { name, types?, statBoost: {stat:+x}, sprite? } */
+/* ---------- Mega evolution data ----------
+   PHASE 2: stat deltas canonical por especie.
+   Em vez de +20% flat, cada mega tem seu boost especifico.
+   Format: { name, types, delta: { stat: +N } }
+   Fontes: Bulbapedia tabelas oficiais. Stats ausentes = 0.
+*/
+function D(atk=0, def=0, spa=0, spd=0, spe=0){
+  return { attack:atk, defense:def, 'special-attack':spa, 'special-defense':spd, speed:spe };
+}
 export const MEGA_DATA = {
-  6:  { x:{ name:'Mega Charizard X', types:['fire','dragon'] }, y:{ name:'Mega Charizard Y', types:['fire','flying'] } },
-  3:  { name:'Mega Venusaur', types:['grass','poison'] },
-  9:  { name:'Mega Blastoise', types:['water'] },
-  257:{ name:'Mega Blaziken', types:['fire','fighting'] },
-  448:{ name:'Mega Lucario', types:['fighting','steel'] },
-  282:{ name:'Mega Gardevoir', types:['psychic','fairy'] },
-  94: { name:'Mega Gengar', types:['ghost','poison'] },
-  65: { name:'Mega Alakazam', types:['psychic'] },
-  150:{ name:'Mega Mewtwo X', types:['psychic','fighting'] },
-  376:{ name:'Mega Metagross', types:['steel','psychic'] },
-  373:{ name:'Mega Salamence', types:['dragon','flying'] },
+  // ----- Gen 1 -----
+  3:   { name:'Mega Venusaur',     types:['grass','poison'],     delta: D(18,40,22,40,0) },
+  6:   { x:{ name:'Mega Charizard X', types:['fire','dragon'],   delta: D(46,33,21,0,0) },
+         y:{ name:'Mega Charizard Y', types:['fire','flying'],   delta: D(20,0,50,30,0) } },
+  9:   { name:'Mega Blastoise',    types:['water'],              delta: D(20,15,50,40,0) },
+  15:  { name:'Mega Beedrill',     types:['bug','poison'],       delta: D(60,5,5,35,40) },
+  18:  { name:'Mega Pidgeot',      types:['normal','flying'],    delta: D(0,5,65,15,20) },
+  65:  { name:'Mega Alakazam',     types:['psychic'],            delta: D(0,20,40,10,30) },
+  80:  { name:'Mega Slowbro',      types:['water','psychic'],    delta: D(0,70,30,10,0) },
+  94:  { name:'Mega Gengar',       types:['ghost','poison'],     delta: D(65,15,40,20,20) },
+  115: { name:'Mega Kangaskhan',   types:['normal'],             delta: D(30,20,0,20,30) },
+  127: { name:'Mega Pinsir',       types:['bug','flying'],       delta: D(30,20,0,30,20) },
+  130: { name:'Mega Gyarados',     types:['water','dark'],       delta: D(30,40,0,30,0) },
+  142: { name:'Mega Aerodactyl',   types:['rock','flying'],      delta: D(30,20,0,10,20) },
+  150: { x:{ name:'Mega Mewtwo X', types:['psychic','fighting'], delta: D(80,30,-40,0,10) },
+         y:{ name:'Mega Mewtwo Y', types:['psychic'],            delta: D(40,-20,40,30,10) } },
+  // ----- Gen 2 -----
+  181: { name:'Mega Ampharos',     types:['electric','dragon'],  delta: D(20,20,50,30,-10) },
+  208: { name:'Mega Steelix',      types:['steel','ground'],     delta: D(40,70,0,40,0) },
+  212: { name:'Mega Scizor',       types:['bug','steel'],        delta: D(20,40,0,20,15) },
+  214: { name:'Mega Heracross',    types:['bug','fighting'],     delta: D(60,40,0,30,10) },
+  229: { name:'Mega Houndoom',     types:['dark','fire'],        delta: D(0,40,30,30,20) },
+  248: { name:'Mega Tyranitar',    types:['rock','dark'],        delta: D(30,20,0,20,10) },
+  // ----- Gen 3 -----
+  254: { name:'Mega Sceptile',     types:['grass','dragon'],     delta: D(45,10,40,10,25) },
+  257: { name:'Mega Blaziken',     types:['fire','fighting'],    delta: D(40,10,40,10,20) },
+  260: { name:'Mega Swampert',     types:['water','ground'],     delta: D(40,20,40,30,10) },
+  282: { name:'Mega Gardevoir',    types:['psychic','fairy'],    delta: D(20,20,40,15,10) },
+  302: { name:'Mega Sableye',      types:['dark','ghost'],       delta: D(10,50,30,50,0) },
+  303: { name:'Mega Mawile',       types:['steel','fairy'],      delta: D(20,40,0,40,0) },
+  306: { name:'Mega Aggron',       types:['steel'],              delta: D(50,50,0,20,0) },
+  308: { name:'Mega Medicham',     types:['fighting','psychic'], delta: D(40,15,30,15,20) },
+  310: { name:'Mega Manectric',    types:['electric'],           delta: D(20,10,30,20,25) },
+  319: { name:'Mega Sharpedo',     types:['water','dark'],       delta: D(20,20,15,15,10) },
+  323: { name:'Mega Camerupt',     types:['fire','ground'],      delta: D(20,30,45,40,-20) },
+  334: { name:'Mega Altaria',      types:['dragon','fairy'],     delta: D(40,10,40,15,5) },
+  354: { name:'Mega Banette',      types:['ghost'],              delta: D(50,15,10,15,-20) },
+  359: { name:'Mega Absol',        types:['dark'],               delta: D(20,15,45,15,40) },
+  362: { name:'Mega Glalie',       types:['ice'],                delta: D(40,20,40,20,20) },
+  373: { name:'Mega Salamence',    types:['dragon','flying'],    delta: D(10,50,10,40,20) },
+  376: { name:'Mega Metagross',    types:['steel','psychic'],    delta: D(10,20,10,20,30) },
+  380: { name:'Mega Latias',       types:['dragon','psychic'],   delta: D(20,30,20,30,10) },
+  381: { name:'Mega Latios',       types:['dragon','psychic'],   delta: D(40,20,40,20,10) },
+  384: { name:'Mega Rayquaza',     types:['dragon','flying'],    delta: D(30,10,30,10,20) },
+  // ----- Gen 4 -----
+  428: { name:'Mega Lopunny',      types:['normal','fighting'],  delta: D(60,10,0,10,30) },
+  445: { name:'Mega Garchomp',     types:['dragon','ground'],    delta: D(40,20,40,20,-10) },
+  448: { name:'Mega Lucario',      types:['fighting','steel'],   delta: D(35,18,25,5,22) },
+  460: { name:'Mega Abomasnow',    types:['grass','ice'],        delta: D(40,30,30,20,-20) },
+  475: { name:'Mega Gallade',      types:['psychic','fighting'], delta: D(40,15,0,20,30) },
+  // ----- Gen 6 -----
+  719: { name:'Mega Diancie',      types:['rock','fairy'],       delta: D(60,40,60,40,60) },
 };
 
 /* Whether move makes contact (for Rocky Helmet / Life Orb interactions) */

@@ -15,9 +15,15 @@
    transport is active.
    ============================================================ */
 
+// URL pode ser sobrescrita em runtime via `localStorage.setItem('pkq:wsUrl', '...')`
+// (util para trocar de tunel sem novo deploy).
+const DEFAULT_URL = 'wss://tip-lesson-jan-analyses.trycloudflare.com/?token=5c06408b9c6f75dd4e6e9fe2a3200e3dd5e1cd02da8b0e818fec50a35138b942';
+let _overrideUrl = null;
+try { _overrideUrl = localStorage.getItem('pkq:wsUrl'); } catch {}
+
 export const NET_CONFIG = {
-  mode: 'local',                 // 'local' | 'socket'
-  url: 'wss://your-server.example/pkq',  // used when mode === 'socket'
+  mode: 'socket',                 // 'local' | 'socket'
+  url: _overrideUrl || DEFAULT_URL,
   heartbeatMs: 4000,
   onlineWindowMs: 12000,
 };

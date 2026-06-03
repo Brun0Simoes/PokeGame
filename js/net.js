@@ -17,7 +17,7 @@
 
 // URL pode ser sobrescrita em runtime via `localStorage.setItem('pkq:wsUrl', '...')`
 // (util para trocar de tunel sem novo deploy).
-const DEFAULT_URL = 'wss://tip-lesson-jan-analyses.trycloudflare.com/?token=5c06408b9c6f75dd4e6e9fe2a3200e3dd5e1cd02da8b0e818fec50a35138b942';
+const DEFAULT_URL = 'wss://wilhelmina-calvus-overmellowly.ngrok-free.dev/?token=5c06408b9c6f75dd4e6e9fe2a3200e3dd5e1cd02da8b0e818fec50a35138b942';
 let _overrideUrl = null;
 try { _overrideUrl = localStorage.getItem('pkq:wsUrl'); } catch {}
 

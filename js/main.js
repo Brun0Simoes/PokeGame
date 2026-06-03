@@ -47,13 +47,26 @@ if('serviceWorker' in navigator){
   });
 }
 
-/* keep playtime advancing while logged in */
-setInterval(()=>{
+/* ---- FIX B: playtime tracker com batch + flush periodico ----
+   Antes: setSave a cada 1s = 3600 writes/h em localStorage e
+   spam de debounced server-sync. Agora: acumula em memoria e
+   persiste a cada 30s. Tambem flush no beforeunload pra nao
+   perder progresso de playtime. */
+let _pendingPlayTime = 0; // segundos acumulados
+function flushPlaytime(){
+  if(_pendingPlayTime === 0) return;
   const email = Store.currentEmail();
   if(!email) return;
   const save = Store.getSave(email);
   if(!save) return;
-  save.trainer.hoursPlayed = (save.trainer.hoursPlayed||0) + 1/3600; // +1s
+  save.trainer.hoursPlayed = (save.trainer.hoursPlayed||0) + _pendingPlayTime / 3600;
   save.trainer.lastPlayed = Date.now();
   Store.setSave(email, save);
+  _pendingPlayTime = 0;
+}
+setInterval(()=>{
+  if(Store.currentEmail()) _pendingPlayTime++;
 }, 1000);
+setInterval(flushPlaytime, 30000);     // 30s — 120 writes/h em vez de 3600
+window.addEventListener('beforeunload', flushPlaytime);
+window.addEventListener('pagehide',     flushPlaytime);

@@ -123,19 +123,54 @@ function exportSave(ctx){
   URL.revokeObjectURL(url);
   toast('Save exportado','info');
 }
+/* ---- FIX E: schema validation completa ao importar save ----
+   Antes: aceitava qualquer JSON com `save.version` definido — um arquivo
+   malformado podia corromper o save em runtime. */
+function validateSaveShape(s){
+  if(!s || typeof s !== 'object') return 'save nao e objeto';
+  if(typeof s.version !== 'number') return 'falta save.version (numero)';
+  if(!s.trainer || typeof s.trainer !== 'object') return 'falta save.trainer';
+  if(typeof s.trainer.name !== 'string' || s.trainer.name.length === 0) return 'save.trainer.name invalido';
+  if(typeof s.trainer.money !== 'number' || s.trainer.money < 0) return 'save.trainer.money invalido';
+  if(typeof s.trainer.region !== 'string') return 'save.trainer.region invalido';
+  if(!Array.isArray(s.party)) return 'save.party nao e array';
+  if(s.party.length > 6) return 'save.party maior que 6';
+  if(!Array.isArray(s.box)) return 'save.box nao e array';
+  if(!s.bag || typeof s.bag !== 'object') return 'save.bag invalido';
+  for(const cat of ['balls','medicine','ev','held','mega','zcrystal','tm']){
+    if(s.bag[cat] && typeof s.bag[cat] !== 'object') return 'save.bag.'+cat+' invalido';
+  }
+  if(!s.pokedex || typeof s.pokedex !== 'object') return 'save.pokedex invalido';
+  if(!s.pokedex.seen || typeof s.pokedex.seen !== 'object') return 'save.pokedex.seen invalido';
+  if(!s.pokedex.caught || typeof s.pokedex.caught !== 'object') return 'save.pokedex.caught invalido';
+  if(!s.progress || typeof s.progress !== 'object') return 'save.progress invalido';
+  if(!Array.isArray(s.progress.gymsBeaten)) return 'save.progress.gymsBeaten nao e array';
+  if(!Array.isArray(s.progress.trainersBeaten)) return 'save.progress.trainersBeaten nao e array';
+  for(const m of s.party){
+    if(!m || typeof m !== 'object') return 'mon na party invalido';
+    if(typeof m.id !== 'number') return 'mon sem id numerico';
+    if(typeof m.level !== 'number' || m.level < 1 || m.level > 100) return 'mon level invalido ('+m.level+')';
+  }
+  return null; // ok
+}
+
 function importSave(ctx){
   const input = document.createElement('input');
   input.type = 'file'; input.accept = '.json';
   input.onchange = async (e)=>{
     const f = e.target.files?.[0]; if(!f) return;
+    if(f.size > 2 * 1024 * 1024){
+      toast('Erro: arquivo maior que 2MB.', 'fail'); return;
+    }
     try{
       const text = await f.text();
       const obj = JSON.parse(text);
-      if(obj.save && obj.save.version){
-        Store.setSave(ctx.account.email, obj.save);
-        toast('Save importado. Recarregando…','success');
-        setTimeout(()=>location.reload(), 800);
-      }else throw new Error('Arquivo inválido');
+      if(!obj || typeof obj !== 'object') throw new Error('JSON nao e objeto');
+      const err = validateSaveShape(obj.save);
+      if(err) throw new Error('Schema invalido: ' + err);
+      Store.setSave(ctx.account.email, obj.save);
+      toast('Save importado. Recarregando…','success');
+      setTimeout(()=>location.reload(), 800);
     }catch(err){ toast('Erro: '+err.message,'fail'); }
   };
   input.click();

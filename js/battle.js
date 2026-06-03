@@ -156,6 +156,23 @@ class BattleEngine{
       this.log.push(h.message);
     }
   }
+  /* ---- FIX A: X button no canto. Em wild = fuga; em trainer = aplica multa ---- */
+  _abortBattle(){
+    // ja estamos numa tela de "over"? so fecha
+    if(this.mode === 'over'){ this._close(this.lastResult); return; }
+    if(this.opts.isWild){
+      // wild: trata como fuga sem rolar formula (atalho de X)
+      this._close('flee_player');
+      return;
+    }
+    // trainer: confirma + aplica derrota com multa
+    const ok = confirm('Desistir da batalha? Voce vai perder dinheiro como em uma derrota.');
+    if(!ok) return;
+    this._finishDefeat();
+    // _finishDefeat ja seta lastResult='lose'; agora fecha
+    setTimeout(()=>this._close(this.lastResult || 'lose'), 100);
+  }
+
   async _close(verdict){
     // ---- Restaura mons que sofreram Mega/Dynamax (post-batalha) ----
     // Iteramos AMBOS os times pra cobrir switch mid-gimmick.
@@ -236,7 +253,7 @@ class BattleEngine{
       el('div', { class:'panel-bar' }, [
         el('span', { class:'dot' }),
         el('span', {}, this.opts.isWild ? '◢ POKÉMON SELVAGEM' : '◢ ' + this.opts.enemyLabel.toUpperCase()),
-        el('button', { class:'panel-bar-close', onClick: ()=>this._close('flee_player') }, '✕'),
+        el('button', { class:'panel-bar-close', onClick: ()=>this._abortBattle() }, '✕'),
       ]),
       this._scene(),
       this._dialog(),
@@ -638,7 +655,11 @@ class BattleEngine{
     const ePrio = eMove ? core.movePriority(eMove) : 0;
     // quick claw: small chance to ignore speed
     const pQuick = this.pMon._heldData?.effect==='quickclaw' && Math.random()<0.2;
-    const playerFirst = pPrio !== ePrio ? pPrio > ePrio : (pQuick ? true : pSpeed >= eSpeed);
+    // ---- FIX D: tiebreak random quando speeds sao iguais (canonical) ----
+    // antes: pSpeed >= eSpeed => empate sempre vai pro jogador
+    const speedTie = pSpeed === eSpeed;
+    const speedWin = speedTie ? Math.random() < 0.5 : pSpeed > eSpeed;
+    const playerFirst = pPrio !== ePrio ? pPrio > ePrio : (pQuick ? true : speedWin);
     const pCtx = { z:this._zActive, max:this._maxActive };
 
     if(playerFirst){
@@ -982,34 +1003,16 @@ class BattleEngine{
     if(this._zActive) this._zActive = false;
     this._endMaxIfNeeded();
 
-    // ----- End-of-turn residuals (both sides) -----
-    for(const mon of [this.pMon, this.eMon]){
-      if(!mon || mon.hp<=0) continue;
-      // status damage
-      const evs = core.endOfTurnStatus(mon);
-      for(const e of evs){ this.log.push(e.message); this._render(); await wait(550); }
-      if(mon.hp<=0) continue;
-      // end-of-turn ability (speed boost, etc.)
-      const aev = core.abilityEndOfTurn(mon);
-      for(const e of aev){ this.log.push(e.message); this._render(); await wait(420); }
-      // leftovers
-      if(mon._heldData?.effect==='leftovers' && mon.hp < mon.maxHp){
-        const heal = Math.max(1, Math.floor(mon.maxHp/16));
-        mon.hp = Math.min(mon.maxHp, mon.hp + heal);
-        this.log.push(`${(mon.nickname||mon.name).toUpperCase()} recuperou PS com os Restos.`);
-        this._render(); await wait(450);
-      }
-      // sitrus berry (one-shot, consumed)
-      if(mon._heldData?.effect==='sitrus' && mon.hp <= mon.maxHp*0.5 && !mon._sitrusUsed){
-        mon._sitrusUsed = true;
-        const heal = Math.floor(mon.maxHp*0.25);
-        mon.hp = Math.min(mon.maxHp, mon.hp + heal);
-        this.log.push(`${(mon.nickname||mon.name).toUpperCase()} comeu a Baga Sitrus e recuperou PS!`);
-        mon._heldData = null;
-        this._render(); await wait(500);
-      }
-    }
-    // weather chip damage
+    // ---- FIX C: ordem canonical Gen 5+ de end-of-turn ----
+    // 1. Weather chip damage (sand/hail)
+    // 2. Terrain heal (grassy)
+    // 3. Status residual (poison, burn)
+    // 4. Ability end-of-turn (speed-boost, etc)
+    // 5. Held items: leftovers
+    // 6. Held items: berries (sitrus, etc) — POR ULTIMO, para reagir ao
+    //    HP final do turno (era o bug: sitrus procava antes do weather chip)
+
+    // ----- 1. Weather chip -----
     if(this.weather==='sandstorm' || this.weather==='hail'){
       for(const mon of [this.pMon, this.eMon]){
         if(!mon || mon.hp<=0) continue;
@@ -1022,10 +1025,44 @@ class BattleEngine{
       this.log.push(this.weather==='sandstorm' ? 'A tempestade de areia castiga!' : 'O granizo castiga!');
       this._render(); await wait(450);
     }
+    // ----- 2. Terrain heal (grassy) -----
+    if(this.terrain==='grassy'){
+      for(const mon of [this.pMon,this.eMon]){
+        if(mon && mon.hp>0 && mon.hp<mon.maxHp && core.isGrounded(mon)){
+          mon.hp = Math.min(mon.maxHp, mon.hp + Math.floor(mon.maxHp/16));
+        }
+      }
+    }
+    // ----- 3-6. Por mon: status, ability, leftovers, berries -----
+    for(const mon of [this.pMon, this.eMon]){
+      if(!mon || mon.hp<=0) continue;
+      // 3. status residual
+      const evs = core.endOfTurnStatus(mon);
+      for(const e of evs){ this.log.push(e.message); this._render(); await wait(550); }
+      if(mon.hp<=0) continue;
+      // 4. ability end-of-turn
+      const aev = core.abilityEndOfTurn(mon);
+      for(const e of aev){ this.log.push(e.message); this._render(); await wait(420); }
+      // 5. leftovers
+      if(mon._heldData?.effect==='leftovers' && mon.hp < mon.maxHp){
+        const heal = Math.max(1, Math.floor(mon.maxHp/16));
+        mon.hp = Math.min(mon.maxHp, mon.hp + heal);
+        this.log.push(`${(mon.nickname||mon.name).toUpperCase()} recuperou PS com os Restos.`);
+        this._render(); await wait(450);
+      }
+      // 6. sitrus berry (reage ao HP final apos weather/status/leftovers)
+      if(mon._heldData?.effect==='sitrus' && mon.hp <= mon.maxHp*0.5 && !mon._sitrusUsed){
+        mon._sitrusUsed = true;
+        const heal = Math.floor(mon.maxHp*0.25);
+        mon.hp = Math.min(mon.maxHp, mon.hp + heal);
+        this.log.push(`${(mon.nickname||mon.name).toUpperCase()} comeu a Baga Sitrus e recuperou PS!`);
+        mon._heldData = null;
+        this._render(); await wait(500);
+      }
+    }
+    // ----- decrement timers -----
     if(this.weatherTurns>0){ this.weatherTurns--; if(this.weatherTurns===0 && this.weather!=='none'){ this.log.push(`O clima voltou ao normal.`); this.weather='none'; } }
     if(this.terrainTurns>0){ this.terrainTurns--; if(this.terrainTurns===0 && this.terrain!=='none'){ this.log.push(`O ${core.TERRAIN[this.terrain]} dissipou.`); this.terrain='none'; } }
-    // grassy terrain heals grounded mons
-    if(this.terrain==='grassy'){ for(const mon of [this.pMon,this.eMon]){ if(mon&&mon.hp>0&&mon.hp<mon.maxHp&&core.isGrounded(mon)){ mon.hp=Math.min(mon.maxHp, mon.hp+Math.floor(mon.maxHp/16)); } } }
     // decrement screen timers
     for(const side of [this.pSide, this.eSide]){ if(side.reflect>0) side.reflect--; if(side.lightscreen>0) side.lightscreen--; if(side.auroraveil>0) side.auroraveil--; }
 

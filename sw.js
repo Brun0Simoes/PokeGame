@@ -5,13 +5,14 @@
    - Runtime-caches sprite/cry assets (cache-first)
    ============================================================ */
 
-const VERSION = 'pkq-v2';
+const VERSION = 'pkq-v3';
 const SHELL = VERSION + '-shell';
 const API   = VERSION + '-api';
 const ASSET = VERSION + '-asset';
 
 const SHELL_FILES = [
-  'Pocket AR Encounter.html',
+  './',
+  'index.html',
   'css/main.css',
   'manifest.webmanifest',
   'icon.svg',

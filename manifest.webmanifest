@@ -2,7 +2,7 @@
   "name": "Pokémon Quest — AR Encounter",
   "short_name": "PkQuestAR",
   "description": "Jogo de captura e batalha de criaturas com AR, batalhas turn-based completas, ginásios, Elite 4 e Liga Online.",
-  "start_url": "Pocket AR Encounter.html",
+  "start_url": "./",
   "scope": ".",
   "display": "standalone",
   "orientation": "any",

@@ -1089,6 +1089,14 @@ class BattleEngine{
     // (selfBuffs setam target=attacker entao nao impactam; tratamos a baixo apenas
     //  o que MIRA o defender)
     let did = false;
+    // BUG FIX M2: weather moves (Sunny Day, Rain Dance, Sandstorm, Hail)
+    const wth = core.moveSetsWeather(move.name);
+    if(wth){
+      this.weather = wth;
+      this.weatherTurns = 5;
+      this.log.push(`${attName} mudou o clima para <b>${core.WEATHER[wth]}</b>!`);
+      this._render(); await wait(600); return;
+    }
     // terrain
     const ter = core.moveSetsTerrain(move.name);
     if(ter){ this.terrain = ter; this.terrainTurns = 5; this.log.push(`${attName} criou o ${core.TERRAIN[ter]}!`); this._render(); await wait(600); return; }

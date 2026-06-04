@@ -337,6 +337,17 @@ export function isGrounded(mon){
 export function moveSetsTerrain(name){
   return ({ 'electric-terrain':'electric', 'grassy-terrain':'grassy', 'misty-terrain':'misty', 'psychic-terrain':'psychic' })[name] || null;
 }
+/* BUG FIX M2: weather-setting moves estavam ausentes */
+export function moveSetsWeather(name){
+  return ({
+    'sunny-day': 'sun',
+    'rain-dance': 'rain',
+    'sandstorm': 'sandstorm',
+    'hail': 'hail',
+    'snowscape': 'hail', // Gen 9 alias
+    'chilly-reception': 'hail',
+  })[name] || null;
+}
 
 /* ---------- Screens (side barriers) ---------- */
 /* a side state object: { reflect:turns, lightscreen:turns, hazards:{stealthrock,spikes} } */

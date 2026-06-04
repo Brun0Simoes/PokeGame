@@ -214,7 +214,7 @@ function pickMoveSlot(mon, newMove){
     const m = el('div', { class:'modal panel' }, [
       el('div', { class:'panel-bar' }, [ el('span',{class:'dot'}), el('span',{}, '◢ ESQUECER QUAL GOLPE?'), el('button',{class:'panel-bar-close', onClick:()=>cl(null)}, '✕') ]),
       el('div', { class:'panel-body' }, [
-        el('p', { class:'dialog-msg' }, `Para aprender <b>${newMove.name.replace(/-/g,' ').toUpperCase()}</b>, escolha um golpe para esquecer:`),
+        el('p', { class:'dialog-msg', html: `Para aprender <b>${newMove.name.replace(/-/g,' ').toUpperCase()}</b>, escolha um golpe para esquecer:` }),
         el('div', { style:{display:'flex',flexDirection:'column',gap:'8px',marginTop:'10px'} }, mon.moves.map((mv,i)=> el('button', {
           class:'btn', style:{justifyContent:'flex-start'}, onClick: ()=>cl(i),
         }, [ el('span',{class:'btn-lbl'}, mv.name.replace(/-/g,' ').toUpperCase()) ]))),

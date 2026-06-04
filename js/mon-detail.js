@@ -317,7 +317,7 @@ export function openMonDetail(mon, ctx, opts={}){
       const m = el('div', { class:'modal panel' }, [
         el('div', { class:'panel-bar' }, [ el('span',{class:'dot'}), el('span',{}, '◢ ESQUECER QUAL GOLPE?'), el('button',{class:'panel-bar-close', onClick:()=>cl(null)}, '✕') ]),
         el('div', { class:'panel-body' }, [
-          el('p', { class:'dialog-msg' }, `Para aprender <b>${newMove.name.replace(/-/g,' ').toUpperCase()}</b>, escolha um golpe para esquecer:`),
+          el('p', { class:'dialog-msg', html: `Para aprender <b>${newMove.name.replace(/-/g,' ').toUpperCase()}</b>, escolha um golpe para esquecer:` }),
           el('div', { class:'md-move-list' }, mon.moves.map((mv,i)=> el('button', {
             class:'md-replace-opt t-'+mv.type, onClick: ()=>cl(i),
           }, [

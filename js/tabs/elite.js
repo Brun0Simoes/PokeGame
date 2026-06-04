@@ -37,7 +37,7 @@ export function renderElite(root, ctx){
               el('div', { class:'lb-row' }, [
                 el('div', { class:'lb-pad' }, '🔒'),
                 el('div', {}, [
-                  el('p', { class:'dialog-msg' }, `Conquiste todas as insígnias da região. Restam <b>${Math.max(0, allGyms - gymsBeaten)}</b>.`),
+                  el('p', { class:'dialog-msg', html: `Conquiste todas as insígnias da região. Restam <b>${Math.max(0, allGyms - gymsBeaten)}</b>.` }),
                   button({ label:'IR PARA GINÁSIOS ▸', kind:'primary', onClick:()=>ctx.go('/game/gyms') }),
                 ]),
               ]),

@@ -75,9 +75,9 @@ export function renderDaycare(root, ctx){
       ]);
     }
     return el('div', { class:'dc-egg-empty' }, [
-      el('p', { class:'dialog-msg' }, a && b
+      el('p', { class:'dialog-msg', html: a && b
         ? 'Os dois Pokémon estão na creche. Tente gerar um Ovo!'
-        : 'Deposite <b>dois</b> Pokémon compatíveis (mesmo tipo ou mesma família) para gerar um Ovo.'),
+        : 'Deposite <b>dois</b> Pokémon compatíveis (mesmo tipo ou mesma família) para gerar um Ovo.' }),
       button({ label:'GERAR OVO', kind:'primary', disabled:!(a&&b), onClick:()=>doLay() }),
     ]);
   }

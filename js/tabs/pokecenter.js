@@ -42,7 +42,7 @@ export function renderPokeCenter(root, ctx){
         ]),
         // Mart
         panel('◢ POKÉ MART', [
-          el('p', { class:'dialog-msg' }, `Saldo: <b>₽ ${ctx.save.trainer.money.toLocaleString('pt-BR')}</b>. Compre o que precisar para sua jornada.`),
+          el('p', { class:'dialog-msg', html: `Saldo: <b>₽ ${ctx.save.trainer.money.toLocaleString('pt-BR')}</b>. Compre o que precisar para sua jornada.` }),
           el('div', { class:'mart-grid' }, MART.map(line => martRow(line, ctx, refresh))),
         ]),
         // PC link

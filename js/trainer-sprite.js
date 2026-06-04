@@ -10,22 +10,55 @@ import { trainerSprite } from './data.js';
    Loads from Showdown; if image fails, switches to an SVG silhouette
    colored by `accent`.
 */
+/* ---- VISUAL FIX V7: fallback chain de keys para sprites ausentes ----
+   Alguns trainers (Lorelei, Agatha) nao existem no Showdown com o nome canonico.
+   Tentamos variantes (-gen3, -rb, -frlg) antes da silhueta. */
+const ALIASES = {
+  lorelei:  ['lorelei-gen3', 'prima', 'lorelei-rb'],
+  agatha:   ['agatha-gen3', 'agatha-rb'],
+  ethan:    ['ethan-hgss', 'gold'],
+  lyra:     ['lyra-hgss', 'kris'],
+  brendan:  ['brendan-rs', 'brendan-emerald'],
+  may:      ['may-rs', 'may-emerald'],
+  red:      ['red-frlg', 'red-gen3', 'red-gen1main'],
+  blue:     ['blue-frlg', 'blue-rb', 'blue-gen3'],
+  leaf:     ['leaf-gen3', 'leaf-frlg'],
+  lance:    ['lance-gen3', 'lance-hgss'],
+  bruno:    ['bruno-gen3', 'bruno-rb'],
+  steven:   ['steven-rs', 'steven-emerald'],
+  cynthia:  ['cynthia-gen4', 'cynthia-bw'],
+  alder:    ['alder-bw'],
+  diantha:  ['diantha-xy'],
+  kukui:    ['kukui-sm'],
+  leon:     ['leon-swsh'],
+  geeta:    ['geeta-sv'],
+  arceus:   ['arceus-la'],
+};
+
 export function trainerSpriteTile({ key, name, size = 96, accent = '#DC3545' }){
   const wrap = el('div', { class:'tr-sprite', style:{ width:size+'px', height:size+'px' } });
   if(!key){
     wrap.appendChild(silhouette(name || '?', accent));
     return wrap;
   }
+  // tenta uma lista: key original + aliases + silhueta
+  const candidates = [key, ...(ALIASES[key] || [])];
+  let idx = 0;
   const img = new Image();
-  img.src = trainerSprite(key);
   img.alt = name || key;
   img.decoding = 'async';
   img.loading = 'eager';
   img.style.cssText = `width:100%;height:100%;object-fit:contain;image-rendering:pixelated;`;
   img.onerror = ()=>{
+    idx++;
+    if(idx < candidates.length){
+      img.src = trainerSprite(candidates[idx]);
+      return;
+    }
     wrap.innerHTML = '';
     wrap.appendChild(silhouette(name || '?', accent));
   };
+  img.src = trainerSprite(candidates[0]);
   wrap.appendChild(img);
   return wrap;
 }

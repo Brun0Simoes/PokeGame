@@ -1011,7 +1011,8 @@ class BattleEngine{
       for(const e of cev){ this.log.push(e.message); this._render(); await wait(450); }
     }
     // Draining moves heal the attacker for ~50% of damage dealt
-    if(/drain|absorb|mega-drain|giga-drain|leech-life|drain-punch|horn-leech/.test(move.name) && dmg>0 && attacker.hp>0){
+    // BUG FIX M1: Dream Eater + Bitter Blade nao estavam no regex de drain
+    if(/drain|absorb|mega-drain|giga-drain|leech-life|drain-punch|horn-leech|dream-eater|bitter-blade|parabolic-charge|oblivion-wing/.test(move.name) && dmg>0 && attacker.hp>0){
       const heal = Math.max(1, Math.floor(dmg*0.5));
       attacker.hp = Math.min(attacker.maxHp, attacker.hp + heal);
       this.log.push(`${attName} drenou energia e recuperou PS!`);

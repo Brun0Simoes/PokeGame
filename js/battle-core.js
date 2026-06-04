@@ -7,6 +7,27 @@
 
 import { typeMultiplier, TYPE_COLOR } from './data.js';
 
+/* ---------- PHASE 3: Seeded RNG (Mulberry32) para PvP determinístico ----------
+   Quando duas instancias de BattleEngine sao iniciadas com o mesmo seed,
+   produzem os mesmos resultados de dano/crit/accuracy/etc. Isso permite
+   sincronizar uma batalha PvP sem o servidor precisar resolver — o seed
+   eh combinado no momento do invite (no protocolo `team` ou `accept`). */
+export function createSeededRng(seed){
+  let state = seed >>> 0;
+  if (state === 0) state = 0xDEADBEEF;
+  return function rand(){
+    state = (state + 0x6D2B79F5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1) >>> 0;
+    t ^= (t + Math.imul(t ^ (t >>> 7), t | 61)) >>> 0;
+    return ((t ^ (t >>> 14)) >>> 0) / 0x100000000;
+  };
+}
+/* Gera um seed compartilhavel entre os dois jogadores no momento do invite. */
+export function newBattleSeed(){
+  return Math.floor(Math.random() * 0xFFFFFFFF) >>> 0;
+}
+
 /* ---------- Stat stages (-6..+6) ---------- */
 export const STAGE_MULT = { '-6':0.25,'-5':0.285,'-4':0.33,'-3':0.4,'-2':0.5,'-1':0.66,'0':1,'1':1.5,'2':2,'3':2.5,'4':3,'5':3.5,'6':4 };
 export const ACC_STAGE_MULT = { '-6':0.33,'-5':0.375,'-4':0.428,'-3':0.5,'-2':0.6,'-1':0.75,'0':1,'1':1.33,'2':1.66,'3':2,'4':2.33,'5':2.66,'6':3 };

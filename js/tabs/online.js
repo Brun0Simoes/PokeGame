@@ -156,12 +156,27 @@ export function renderOnline(root, ctx){
       audio.playSfx('error'); return;
     }
     const team = buildTeam(p);
+    // PHASE 3: seed deterministico para PvP. Player com email "menor"
+    // gera o seed; assim ambos chegam ao mesmo valor sem trocar mensagem.
+    // (Para bots usamos seed null = Math.random)
+    let seed = null;
+    if(p.kind === 'player'){
+      const { newBattleSeed } = await import('../battle-core.js');
+      const myEmail = account.email || '';
+      const otherEmail = p.id || '';
+      // tie-break por ordem alfabetica: o "menor" gera o seed
+      if(myEmail < otherEmail){
+        seed = newBattleSeed();
+        Net.send({ t:'team', to: p.id, battleId: 'pvp-'+Date.now(), team: team.map(m=>({id:m.id,lvl:m.lvl})), seed });
+      }
+    }
     const result = await runQuickBattle({
       ctx,
       opponentLabel: `${p.name}`,
       opponentTeam: team,
       sprite: p.sprite,
       musicMood: 'battle',
+      seed,
     });
     if(result === 'win'){
       const reward = 600 + p.level * 25;

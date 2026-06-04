@@ -51,7 +51,7 @@ export async function startWildBattle({ ctx, wildPokemon, level }){
 }
 
 /* =========== Trainer battle =========== */
-export async function runQuickBattle({ ctx, opponentLabel, opponentTeam, sprite, musicMood='battle' }){
+export async function runQuickBattle({ ctx, opponentLabel, opponentTeam, sprite, musicMood='battle', seed=null }){
   // Resolve enemy team
   const enemyTeam = [];
   for(const t of opponentTeam){
@@ -74,6 +74,7 @@ export async function runQuickBattle({ ctx, opponentLabel, opponentTeam, sprite,
     enemyLabel: opponentLabel,
     enemySprite: sprite,
     musicMood,
+    seed, // PHASE 3: passa seed para RNG deterministico
   }).run();
 }
 
@@ -89,11 +90,21 @@ class BattleEngine{
     this.mode = 'main'; // main | fight | bag | switch | message | over
     this.lock = false;
     this.lastResult = null;
+    // PHASE 3: PvP-deterministic RNG. Se opts.seed for fornecido (via online.js),
+    // o RNG vira deterministic; senao usa Math.random normal.
+    this._rng = opts.seed != null ? core.createSeededRng(opts.seed) : Math.random;
   }
 
   _firstAliveIdx(team){ return team.findIndex(m=>m.hp>0); }
   get pMon(){ return this.playerTeam[this.pIdx]; }
   get eMon(){ return this.enemyTeam[this.eIdx]; }
+
+  /* ---- PHASE 1: bioma do background baseado em regiao + clima ---- */
+  _biomeFor(){
+    const region = this.opts.ctx?.save?.trainer?.region || 'kanto';
+    // mapping super simples; cada um aplica gradiente + cor de chao diferente em CSS
+    return region; // CSS handles via .biome-kanto, .biome-johto, etc
+  }
 
   /* prep a mon for battle: stages, held data, mega backup slot */
   _prep(mon){
@@ -283,7 +294,10 @@ class BattleEngine{
     const pMon = this.pMon;
     const isWild = this.opts.isWild;
     const w = this.weather || 'none';
-    return el('div', { class:'bs-scene weather-'+w }, [
+    // PHASE 1: biome do background derivado da regiao do save (kanto, johto, etc)
+    const biome = this._biomeFor();
+    return el('div', { class:'bs-scene weather-'+w+' biome-'+biome+
+        (this._screenShake?' shaking':'')+(this._critFlash?' crit-flash':'') }, [
       el('div', { class:'bs-bg-sky' }),
       el('div', { class:'bs-bg-sun' }),
       el('div', { class:'bs-bg-clouds' }),
@@ -301,7 +315,14 @@ class BattleEngine{
       el('div', { class:'bs-hud bs-hud-enemy' }, hudBox(eMon, true, isWild)),
       el('div', { class:'bs-mon bs-mon-enemy' }, [
         el('img', {
-          class:'bs-spr enemy '+(this._enemyHurt?'hurt':'')+(this._enemyCapturing?' capturing':''),
+          // PHASE 1: classes para mega/dyna/gmax/ko
+          class:'bs-spr enemy '+
+            (this._enemyHurt?'hurt ':'')+
+            (this._enemyCapturing?'capturing ':'')+
+            (eMon._mega?'mega-form ':'')+
+            (eMon._dyna?'dyna-form ':'')+
+            (eMon._gmax?'gmax-form ':'')+
+            (eMon.hp<=0?'koed ':''),
           src: eMon.shiny ? (eMon.sprite.shiny || eMon.sprite.front) : eMon.sprite.front,
           alt: eMon.name,
           style:{ imageRendering:'pixelated' },
@@ -312,7 +333,12 @@ class BattleEngine{
       // Player side
       el('div', { class:'bs-mon bs-mon-player' }, [
         el('img', {
-          class:'bs-spr player '+(this._playerHurt?'hurt':''),
+          class:'bs-spr player '+
+            (this._playerHurt?'hurt ':'')+
+            (pMon._mega?'mega-form ':'')+
+            (pMon._dyna?'dyna-form ':'')+
+            (pMon._gmax?'gmax-form ':'')+
+            (pMon.hp<=0?'koed ':''),
           src: pMon.sprite.back || pMon.sprite.front,
           alt: pMon.name,
           style:{ imageRendering:'pixelated' },
@@ -902,6 +928,18 @@ class BattleEngine{
     defender.hp = Math.max(0, defender.hp - dmg);
     attacker._lastMove = move.name; // pra Metronome (item)
     if(attackerIsEnemy) this._playerHurt = true; else this._enemyHurt = true;
+    // ---- PHASE 1: BATTLE JUICE ----
+    // Critical hit = flash branco no scene
+    if(crit){
+      this._critFlash = true;
+      audio.playSfx('badge');
+      setTimeout(()=>{ this._critFlash = false; this._render(); }, 280);
+    }
+    // Dano alto (>25% maxHp) = screen shake
+    if(dmg > defender.maxHp * 0.25){
+      this._screenShake = true;
+      setTimeout(()=>{ this._screenShake = false; this._render(); }, 350);
+    }
     audio.playSfx('throw');
     this._render();
     setTimeout(()=>{ this._enemyHurt=false; this._playerHurt=false; this._render(); }, 240);
@@ -1038,7 +1076,8 @@ class BattleEngine{
     if((attacker.types||[]).includes(move.type)) dmg *= 1.5; // STAB
     dmg *= typeMultiplier(move.type, defender.types);
     if(crit) dmg *= 1.5;
-    dmg *= 0.85 + Math.random()*0.15;
+    // PHASE 3: usa rng deterministico em PvP
+    dmg *= 0.85 + this._rng()*0.15;
     return Math.max(1, Math.floor(dmg));
   }
 

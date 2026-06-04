@@ -148,11 +148,70 @@ async function doFightChampion(champ, ctx, refresh, reward){
     musicMood: 'gym',
   });
   if(result === 'win'){
+    const wasFirst = !ctx.save.progress.championBeaten;
     ctx.save.progress.championBeaten = true;
     audio.playSfx('success');
     awardTrainerXp(ctx, TRAINER_XP.winChampion);
-    toast('Você é o novo Campeão! Bem-vindo ao Salão da Fama!', 'success');
+    // ---- PHASE 4: registra entrada do Hall of Fame ----
+    ctx.save.hallOfFame = ctx.save.hallOfFame || [];
+    ctx.save.hallOfFame.push({
+      region: ctx.save.trainer.region,
+      championName: champ.name,
+      trainerName: ctx.save.trainer.name,
+      trainerLevel: ctx.save.trainer.level || 1,
+      party: ctx.save.party.map(m => ({
+        id: m.id, name: m.name, nickname: m.nickname,
+        level: m.level, shiny: !!m.shiny,
+        types: m.types, sprite: m.sprite?.front,
+      })),
+      timestamp: Date.now(),
+      wasFirst,
+    });
+    ctx.saveAndSync();
+    // Mostra cena do Salao da Fama
+    await showHallOfFame(ctx.save.hallOfFame[ctx.save.hallOfFame.length-1]);
   }
   ctx.saveAndSync();
   refresh();
+}
+
+/* ---- PHASE 4: Cena cinematica do Salao da Fama ---- */
+async function showHallOfFame(entry){
+  return new Promise(resolve => {
+    const backdrop = el('div', { class:'modal-backdrop show hof-backdrop' });
+    const stage = el('div', { class:'hof-stage' }, [
+      el('div', { class:'hof-sparkles' }),
+      el('div', { class:'hof-title' }, [
+        el('div', { class:'hof-crown' }, '♔'),
+        el('h1', {}, 'SALÃO DA FAMA'),
+        el('div', { class:'hof-sub mono' },
+          `${entry.region.toUpperCase()} · CAMPEÃO derrotado: ${entry.championName}`),
+      ]),
+      el('div', { class:'hof-trainer-row' }, [
+        el('div', { class:'hof-pedestal' }),
+        el('div', { class:'hof-trainer-info' }, [
+          el('div', { class:'hof-trainer-name' }, entry.trainerName.toUpperCase()),
+          el('div', { class:'hof-trainer-lvl mono' }, `Nv. de Treinador ${entry.trainerLevel}`),
+          el('div', { class:'hof-date mono dim' }, new Date(entry.timestamp).toLocaleDateString('pt-BR')),
+        ]),
+      ]),
+      el('div', { class:'hof-party-row' }, entry.party.map((m, i) =>
+        el('div', { class:'hof-mon', style:{ animationDelay: (0.3 + i*0.18) + 's' } }, [
+          el('img', { src: m.sprite, alt: m.name, style:{ imageRendering:'pixelated' } }),
+          el('div', { class:'hof-mon-name mono' },
+            (m.nickname || m.name).toUpperCase() + (m.shiny ? ' ✨' : '')),
+          el('div', { class:'hof-mon-lvl mono' }, 'Lv.' + m.level),
+        ])
+      )),
+      el('div', { class:'hof-actions' }, [
+        button({ label:'CONTINUAR ▸', kind:'primary', onClick: ()=>{
+          backdrop.remove();
+          resolve();
+        }}),
+      ]),
+    ]);
+    backdrop.appendChild(stage);
+    document.body.appendChild(backdrop);
+    audio.playSfx && audio.playSfx('badge');
+  });
 }

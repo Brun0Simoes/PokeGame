@@ -380,7 +380,8 @@ wss.on('connection', (ws, req) => {
         sendTo(m.to, { t: 'decline', from: email, battleId: m.battleId });
         break;
       case 'team':
-        sendTo(m.to, { t: 'team',    from: email, battleId: m.battleId, team: m.team });
+        // PHASE 3: forward seed (PvP deterministic RNG) se presente
+        sendTo(m.to, { t: 'team', from: email, battleId: m.battleId, team: m.team, seed: m.seed });
         break;
       case 'move':
         sendTo(m.to, { t: 'move',    from: email, battleId: m.battleId, action: m.action });

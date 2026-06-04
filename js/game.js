@@ -116,6 +116,14 @@ function getTabRenderer(id){
 function buildShell(acc, save){
   const region = REGIONS.find(r=>r.id===save.trainer.region);
   return el('div', { class:'game-shell' }, [
+    // PHASE 2: hamburger mobile toggle
+    el('button', { class:'sidebar-toggle', 'aria-label':'Menu', onClick: (e)=>{
+      e.stopPropagation();
+      document.querySelector('.game-shell')?.classList.toggle('nav-open');
+    }}, '☰'),
+    el('div', { class:'sidebar-backdrop', onClick: ()=>{
+      document.querySelector('.game-shell')?.classList.remove('nav-open');
+    }}),
     el('aside', { class:'sidebar' }, [
       el('div', { class:'sb-header' }, [
         el('div', { class:'sb-pokeball' }),
@@ -139,7 +147,12 @@ function buildShell(acc, save){
       el('nav', { class:'sb-nav' }, TABS.map(t => el('button', {
         class:'sb-item',
         dataset:{ tab: t.id },
-        onClick: ()=>{ audio.playSfx('select'); go('/game/'+t.id); }
+        // PHASE 2: fecha sidebar mobile ao clicar em tab
+        onClick: ()=>{
+          audio.playSfx('select');
+          document.querySelector('.game-shell')?.classList.remove('nav-open');
+          go('/game/'+t.id);
+        }
       }, [
         el('span', { class:'sb-ic' }, t.icon),
         el('span', { class:'sb-lbl' }, t.label),

@@ -1556,15 +1556,19 @@ a:hover{ text-decoration: underline; }
   filter: drop-shadow(2px 4px 0 rgba(0,0,0,0.25));
   animation: monBob 2.2s ease-in-out infinite;
 }
+/* ---- VISUAL FIX V11: ancora sprites no chao (object-position bottom)
+   para que fiquem em pe sobre a plataforma em vez de flutuar no meio ---- */
 .bs-spr.enemy{
-  width: 112px; height: 112px;
+  width: 128px; height: 128px;
   object-fit: contain;
-  margin-bottom: -8px;
+  object-position: center bottom;
+  margin-bottom: -10px;
 }
 .bs-spr.player{
-  width: 192px; height: 192px;
+  width: 168px; height: 168px;
   object-fit: contain;
-  margin-bottom: -18px;
+  object-position: center bottom;
+  margin-bottom: -22px;
 }
 .bs-spr.hurt{
   animation: hurt 0.3s !important;

@@ -9,6 +9,13 @@ export const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel))
 
 export function el(tag, attrs={}, children=[]){
   const node = document.createElement(tag);
+  // ---- VISUAL FIX V6: auto lazy-load + async decode em imagens ----
+  // Evita renderer-freeze ao montar muitas <img> simultaneas (ex: lista
+  // de NPCs/Elite/PC) e prioriza decodificacao fora da main thread.
+  if(tag === 'img'){
+    if(!('loading' in attrs))   node.loading = 'lazy';
+    if(!('decoding' in attrs))  node.decoding = 'async';
+  }
   for(const [k,v] of Object.entries(attrs||{})){
     if(v == null) continue;
     if(k === 'class') node.className = v;

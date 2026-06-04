@@ -117,8 +117,8 @@ export function renderWild(root, ctx){
             ])
           : sightings.length === 0
             ? el('div', { class:'gs-empty' }, [
-                el('p', { class:'dialog-msg center' },
-                  'Você caminha pela <b>grama alta</b>… Pressione o botão abaixo para procurar Pokémon selvagens!'),
+                el('p', { class:'dialog-msg center', html:
+                  'Você caminha pela <b>grama alta</b>… Pressione o botão abaixo para procurar Pokémon selvagens!' }),
                 el('div', { class:'gs-grass' }, [grassClump(), grassClump(), grassClump(), grassClump(), grassClump()]),
               ])
             : el('div', { class:'gs-sightings' }, sightings.map(s => sightingCard(s))),

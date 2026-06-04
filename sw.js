@@ -5,7 +5,7 @@
    - Runtime-caches sprite/cry assets (cache-first)
    ============================================================ */
 
-const VERSION = 'pkq-v4';
+const VERSION = 'pkq-v5';
 const SHELL = VERSION + '-shell';
 const API   = VERSION + '-api';
 const ASSET = VERSION + '-asset';

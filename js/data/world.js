@@ -30,9 +30,9 @@ export const KANTO_GYMS = [
   { id:'kanto-8', city:'Viridian',  leader:'Giovanni', sprite:'giovanni',  type:'ground',   levelCap:50, badge:{name:'Earth',  color:'#7FCC36'}, team:[{id:111,lvl:45},{id:51,lvl:42},{id:31,lvl:44},{id:34,lvl:45},{id:112,lvl:50}] },
 ];
 export const KANTO_ELITE = [
-  { id:'kanto-e1', name:'Lorelei', sprite:'lorelei', type:'ice',      team:[{id:87,lvl:54},{id:91,lvl:53},{id:80,lvl:54},{id:124,lvl:56},{id:131,lvl:56}] },
-  { id:'kanto-e2', name:'Bruno',   sprite:'bruno',   type:'fighting', team:[{id:95,lvl:53},{id:107,lvl:55},{id:106,lvl:55},{id:95,lvl:56},{id:68,lvl:58}] },
-  { id:'kanto-e3', name:'Agatha',  sprite:'agatha',  type:'ghost',    team:[{id:94,lvl:56},{id:42,lvl:56},{id:93,lvl:55},{id:24,lvl:58},{id:94,lvl:60}] },
+  { id:'kanto-e1', name:'Lorelei', sprite:'lorelei-gen3', type:'ice',      team:[{id:87,lvl:54},{id:91,lvl:53},{id:80,lvl:54},{id:124,lvl:56},{id:131,lvl:56}] },
+  { id:'kanto-e2', name:'Bruno',   sprite:'bruno',        type:'fighting', team:[{id:95,lvl:53},{id:107,lvl:55},{id:106,lvl:55},{id:95,lvl:56},{id:68,lvl:58}] },
+  { id:'kanto-e3', name:'Agatha',  sprite:'agatha-gen3',  type:'ghost',    team:[{id:94,lvl:56},{id:42,lvl:56},{id:93,lvl:55},{id:24,lvl:58},{id:94,lvl:60}] },
   { id:'kanto-e4', name:'Lance',   sprite:'lance',   type:'dragon',   team:[{id:130,lvl:58},{id:148,lvl:56},{id:142,lvl:60},{id:149,lvl:62}] },
 ];
 export const KANTO_CHAMPION = { id:'kanto-champ', name:'Blue', sprite:'blue', team:[{id:18,lvl:61},{id:65,lvl:59},{id:112,lvl:61},{id:103,lvl:63},{id:130,lvl:63},{id:6,lvl:65}] };

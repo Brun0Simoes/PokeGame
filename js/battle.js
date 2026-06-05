@@ -818,6 +818,13 @@ class BattleEngine{
     }
     // Z-status move: buff the user
     if(isZ && isStatus){
+      // BUG FIX M4: prioriza Z-signature (Extreme Evoboost etc) sobre generic
+      if(zSig && zSig.effect?.kind === 'allStatsUp'){
+        this._buff(attacker, 'all', zSig.effect.stages || 1, attackerIsEnemy);
+        this.log.push(`${attName} ativou <b>${zSig.name}</b>!`);
+        this._render(); await wait(700);
+        return;
+      }
       const z = core.zStatusEffect(move.type);
       this._buff(attacker, z.stat, z.stages, attackerIsEnemy);
       this.log.push(`${attName} se preparou com o poder Z!`);

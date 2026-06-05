@@ -785,9 +785,17 @@ class BattleEngine{
         zSig = core.zSignatureFor(attacker.id, heldRaw.signature);
       }
     }
+    // BUG FIX M3: status moves no Dyna viram Max Guard — label deve refletir isso
+    const movIsStatus = (!move.power || move.power === 0) && move.damage_class === 'status';
     let label = move.name.replace(/-/g,' ').toUpperCase();
     if(isZ)  label = (zSig ? zSig.name : core.zMoveName(move.type)).toUpperCase();
-    if(isMax) label = core.maxMoveName(move.type, this._gmaxFor(attacker)).toUpperCase();
+    if(isMax){
+      if(movIsStatus){
+        label = (this._gmaxFor(attacker) ? 'G-MAX ' : 'MAX ') + 'GUARDA';
+      } else {
+        label = core.maxMoveName(move.type, this._gmaxFor(attacker)).toUpperCase();
+      }
+    }
     this.log.push(`${attName} usou <b>${label}</b>!`);
     this._render();
     await wait(450);

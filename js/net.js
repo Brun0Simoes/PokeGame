@@ -17,13 +17,29 @@
 
 // URL pode ser sobrescrita em runtime via `localStorage.setItem('pkq:wsUrl', '...')`
 // (util para trocar de tunel sem novo deploy).
-const DEFAULT_URL = 'wss://wilhelmina-calvus-overmellowly.ngrok-free.dev/?token=5c06408b9c6f75dd4e6e9fe2a3200e3dd5e1cd02da8b0e818fec50a35138b942';
+const NGROK_URL = 'wss://wilhelmina-calvus-overmellowly.ngrok-free.dev/?token=5c06408b9c6f75dd4e6e9fe2a3200e3dd5e1cd02da8b0e818fec50a35138b942';
+
+// Auto-deteccao do backend:
+//   - GitHub Pages (*.github.io)  -> tunel ngrok publico
+//   - file:// ou sem host         -> tunel (sem outra opcao)
+//   - qualquer outro host         -> MESMO servidor que serviu a pagina
+//     (caso Docker / localhost / LAN: a pagina e o WS vem do mesmo container)
+function deriveDefaultUrl(){
+  try {
+    const h = location.hostname || '';
+    if (h.endsWith('github.io')) return NGROK_URL;
+    if (location.protocol === 'file:' || !h) return NGROK_URL;
+    const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${wsProto}//${location.host}/`;
+  } catch { return NGROK_URL; }
+}
+
 let _overrideUrl = null;
 try { _overrideUrl = localStorage.getItem('pkq:wsUrl'); } catch {}
 
 export const NET_CONFIG = {
   mode: 'socket',                 // 'local' | 'socket'
-  url: _overrideUrl || DEFAULT_URL,
+  url: _overrideUrl || deriveDefaultUrl(),
   heartbeatMs: 4000,
   onlineWindowMs: 12000,
 };

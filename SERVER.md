@@ -4,6 +4,26 @@ O jogo já funciona offline com um **lobby simulado** (`js/tabs/online.js`)
 e um adaptador de rede plugável (`js/net.js`). Para multiplayer real entre
 dispositivos diferentes, basta subir um servidor WebSocket e trocar a config.
 
+## 0. Rodar tudo com Docker (servidor responde a própria página)
+
+O jeito mais simples de subir localmente: um único container que **serve a
+página do jogo + o backend** (WebSocket Liga Online + API de save) no mesmo
+origin. Usa a porta **8090** (não conflita com nada já em uso).
+
+```bash
+docker compose up -d --build     # build + sobe em background
+docker compose logs -f           # acompanhar logs
+docker compose down              # derruba só este serviço
+```
+
+Depois abra **http://localhost:8090/**. O cliente (`js/net.js`) detecta que
+não está no GitHub Pages e conecta no WebSocket do **mesmo origin**
+automaticamente (`ws://localhost:8090/`) — sem túnel, sem mixed-content.
+
+Saves persistem no volume `pokegame_saves`. Para acessar de outro dispositivo
+na LAN, adicione `http://SEU-IP:8090` em `ALLOWED_ORIGINS` no
+`docker-compose.yml`. Em produção, troque o `SERVER_PEPPER`.
+
 ## 1. Ativar o modo online no cliente
 
 Em `js/net.js`, ajuste:

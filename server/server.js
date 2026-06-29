@@ -20,10 +20,10 @@
 import 'dotenv/config';
 import { createServer as createHttpServer } from 'node:http';
 import { createServer as createHttpsServer } from 'node:https';
-import { readFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, mkdirSync, createReadStream } from 'node:fs';
 import { promises as fsp } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join as pathJoin } from 'node:path';
+import { join as pathJoin, normalize as pathNormalize, resolve as pathResolve, extname as pathExtname } from 'node:path';
 import { WebSocketServer } from 'ws';
 
 /* ---------- Config ---------- */
@@ -43,6 +43,59 @@ const SAVE_DIR             = process.env.SAVE_DIR     || './saves';
 const SERVER_PEPPER        = process.env.SERVER_PEPPER || '';
 const MAX_BODY_BYTES       = parseInt(process.env.MAX_BODY_BYTES || '524288', 10); // 512KB
 mkdirSync(SAVE_DIR, { recursive: true });
+
+/* ---------- Static (serve a propria pagina do jogo) ----------
+   Se STATIC_DIR aponta para a raiz do jogo (index.html, css/, js/...),
+   o servidor responde a pagina E o backend no mesmo origin. Deixe
+   vazio para desativar (modo so-API, como no GitHub Pages). */
+const STATIC_DIR = process.env.STATIC_DIR
+  ? pathResolve(process.env.STATIC_DIR)
+  : '';
+const MIME = {
+  '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8',
+  '.mjs':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8',
+  '.json':'application/json; charset=utf-8', '.webmanifest':'application/manifest+json',
+  '.svg':'image/svg+xml', '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg',
+  '.gif':'image/gif', '.webp':'image/webp', '.ico':'image/x-icon',
+  '.ogg':'audio/ogg', '.mp3':'audio/mpeg', '.woff':'font/woff', '.woff2':'font/woff2',
+  '.map':'application/json; charset=utf-8', '.txt':'text/plain; charset=utf-8',
+  '.md':'text/markdown; charset=utf-8',
+};
+
+async function serveStatic(req, res) {
+  if (!STATIC_DIR) { res.writeHead(404); res.end(); return; }
+  if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); res.end(); return; }
+  // remove query string e decodifica
+  let urlPath = decodeURIComponent((req.url.split('?')[0] || '/'));
+  if (urlPath === '/' || urlPath === '') urlPath = '/index.html';
+  // guard contra path traversal: resolve e confirma que fica dentro de STATIC_DIR
+  const filePath = pathNormalize(pathJoin(STATIC_DIR, urlPath));
+  if (!filePath.startsWith(STATIC_DIR)) { res.writeHead(403); res.end(); return; }
+  try {
+    const st = await fsp.stat(filePath);
+    if (st.isDirectory()) { res.writeHead(403); res.end(); return; }
+    const type = MIME[pathExtname(filePath).toLowerCase()] || 'application/octet-stream';
+    // sw.js e index nunca devem ser cacheados de forma agressiva
+    const noCache = /(\\|\/)(sw\.js|index\.html)$/i.test(filePath);
+    res.writeHead(200, {
+      'content-type': type,
+      'content-length': st.size,
+      'cache-control': noCache ? 'no-cache' : 'public, max-age=300',
+    });
+    if (req.method === 'HEAD') { res.end(); return; }
+    createReadStream(filePath).pipe(res);
+  } catch {
+    // arquivo nao existe: serve index.html (a rota de jogo usa hash, mas
+    // links diretos a #/... ja batem em '/'); senao 404.
+    if (pathExtname(filePath)) { res.writeHead(404); res.end(); return; }
+    try {
+      const idx = pathJoin(STATIC_DIR, 'index.html');
+      const data = await fsp.readFile(idx);
+      res.writeHead(200, { 'content-type': MIME['.html'], 'cache-control': 'no-cache' });
+      res.end(data);
+    } catch { res.writeHead(404); res.end(); }
+  }
+}
 
 function emailKey(email)            { return createHash('sha256').update(String(email).toLowerCase()).digest('hex'); }
 function serverHash(clientHash, em) { return createHash('sha256').update(String(clientHash) + ':' + String(em).toLowerCase() + ':' + SERVER_PEPPER).digest('hex'); }
@@ -108,7 +161,7 @@ httpServer.on('request', async (req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   // ----- health -----
-  if (req.url === '/health' || req.url === '/') {
+  if (req.url === '/health') {
     return jsonRes(res, 200, {
       ok: true,
       service: 'pkq-server',
@@ -202,7 +255,8 @@ httpServer.on('request', async (req, res) => {
     }
   }
 
-  res.writeHead(404); res.end();
+  // ----- estaticos (a propria pagina do jogo, se STATIC_DIR setado) -----
+  return serveStatic(req, res);
 });
 
 /* ---------- WS server ----------

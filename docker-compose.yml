@@ -1,0 +1,42 @@
+# ============================================================
+# Pocket Quest — stack local (Docker)
+# Sobe o servidor que SERVE A PAGINA + backend no mesmo origin.
+# Porta 8090 no host (nao conflita com o 8080 ja em uso).
+#
+#   docker compose up -d --build      # sobe
+#   docker compose logs -f            # logs
+#   docker compose down               # derruba (so este servico)
+#
+# Abra:  http://localhost:8090/
+# ============================================================
+services:
+  pokegame:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pokegame:local
+    container_name: pokegame
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      PORT: "8090"
+      STATIC_DIR: /app/public
+      SAVE_DIR: /app/saves
+      # Origens permitidas. A pagina servida pelo proprio container usa
+      # http://localhost:8090. Adicione o IP/host de LAN se for acessar
+      # de outro dispositivo (ex.: http://192.168.0.10:8090).
+      ALLOWED_ORIGINS: "http://localhost:8090,http://127.0.0.1:8090"
+      # Sem token: o gate e a allowlist de origin (same-origin local).
+      AUTH_TOKEN: ""
+      # Pepper do hash de senha dos saves. TROQUE por um valor proprio
+      # em producao (mantem os saves consistentes entre restarts).
+      SERVER_PEPPER: "pkq-docker-local-pepper-change-me"
+      MAX_CONNECTIONS_PER_IP: "16"
+      RATE_LIMIT_PER_SEC: "30"
+      HEARTBEAT_MS: "30000"
+    volumes:
+      - pokegame_saves:/app/saves
+
+volumes:
+  pokegame_saves:

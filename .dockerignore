@@ -1,0 +1,20 @@
+# Build context: so o que o container precisa
+.git
+.gitignore
+Dockerfile
+.dockerignore
+docker-compose.yml
+SERVER.md
+screenshots
+uploads
+
+# Server: nada de node_modules/logs/saves/secrets locais
+server/node_modules
+server/saves
+server/audit
+server/*.log
+server/.env
+server/run-all.ps1
+server/start.ps1
+server/stop-all.ps1
+server/README.md
